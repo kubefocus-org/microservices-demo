@@ -241,25 +241,13 @@ spec:
         sidecar.istio.io/rewriteAppHTTPProbers: "true"
     spec:
       serviceAccountName: default
-      securityContext:
-        fsGroup: 1000
-        runAsGroup: 1000
-        runAsNonRoot: true
-        runAsUser: 1000
       containers:
         - name: server
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
-            privileged: false
-            readOnlyRootFilesystem: true
           image: gcr.io/google-samples/microservices-demo/frontend:v0.6.0
           ports:
           - containerPort: 8080
           readinessProbe:
-            initialDelaySeconds: 10
+            initialDelaySeconds: 60
             httpGet:
               path: "/_healthz"
               port: 8080
@@ -267,7 +255,7 @@ spec:
               - name: "Cookie"
                 value: "shop_session-id=x-readiness-probe"
           livenessProbe:
-            initialDelaySeconds: 10
+            initialDelaySeconds: 60
             httpGet:
               path: "/_healthz"
               port: 8080
