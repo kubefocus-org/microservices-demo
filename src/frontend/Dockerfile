@@ -33,6 +33,7 @@ WORKDIR /src
 COPY --from=builder /go/bin/frontend /src/server
 COPY ./templates ./templates
 COPY ./static ./static
+COPY ./docker-entrypoint.sh ./docker-entrypoint.sh
 
 # Definition of this variable is used by 'skaffold debug' to identify a golang binary.
 # Default behavior - a failure prints a stack trace for the current goroutine.
@@ -40,4 +41,5 @@ COPY ./static ./static
 ENV GOTRACEBACK=single
 
 EXPOSE 8080
-ENTRYPOINT ["/src/server"]
+ENTRYPOINT ["/src/docker-entrypoint.sh"]
+CMD ["start"]
