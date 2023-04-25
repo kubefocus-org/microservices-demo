@@ -12,25 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.20.3-alpine@sha256:48c87cd759e3342fcbc4241533337141e7d8457ec33ab9660abe0a4346c30b60 as builder
-RUN apk add --no-cache ca-certificates git
-RUN apk add build-base
+FROM ubuntu:22.04
+RUN apt update
+RUN apt install -y ca-certificates busybox \
+    net-tools bind9 bind9utils bind9-doc dnsutils
 WORKDIR /src
-
-# restore dependencies
-COPY go.mod go.sum ./
-RUN go mod download
-COPY . .
-
-# Skaffold passes in debug-oriented compiler flags
-ARG SKAFFOLD_GO_GCFLAGS
-RUN go build -gcflags="${SKAFFOLD_GO_GCFLAGS}" -o /go/bin/frontend .
-
-FROM alpine:3.17.3@sha256:124c7d2707904eea7431fffe91522a01e5a861a624ee31d03372cc1d138a3126 as release
-RUN apk add --no-cache ca-certificates \
-    busybox-extras net-tools bind-tools
-WORKDIR /src
-COPY --from=builder /go/bin/frontend /src/server
+COPY bin/frontend /src/server
 COPY ./templates ./templates
 COPY ./static ./static
 COPY ./docker-entrypoint.sh ./docker-entrypoint.sh
@@ -42,4 +29,3 @@ ENV GOTRACEBACK=single
 
 EXPOSE 8080
 ENTRYPOINT ["/src/docker-entrypoint.sh"]
-CMD ["start"]

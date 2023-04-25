@@ -246,22 +246,8 @@ spec:
           image: gcr.io/google-samples/microservices-demo/frontend:v0.6.0
           ports:
           - containerPort: 8080
-          readinessProbe:
-            initialDelaySeconds: 60
-            httpGet:
-              path: "/_healthz"
-              port: 8080
-              httpHeaders:
-              - name: "Cookie"
-                value: "shop_session-id=x-readiness-probe"
-          livenessProbe:
-            initialDelaySeconds: 60
-            httpGet:
-              path: "/_healthz"
-              port: 8080
-              httpHeaders:
-              - name: "Cookie"
-                value: "shop_session-id=x-liveness-probe"
+          args:
+          - start
           env:
           - name: PORT
             value: "8080"

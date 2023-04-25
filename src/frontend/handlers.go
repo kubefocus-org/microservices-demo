@@ -15,6 +15,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"html/template"
@@ -389,6 +390,61 @@ func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Reque
 	}); err != nil {
 		log.Println(err)
 	}
+}
+
+func (fe *frontendServer) loginHandler(w http.ResponseWriter, r *http.Request) {
+	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
+	log.Debug("login screen")
+
+	var tpl bytes.Buffer
+	err := templates.ExecuteTemplate(&tpl, "login", map[string]interface{}{
+		"session_id":    sessionID(r),
+		"request_id":    r.Context().Value(ctxKeyRequestID{}),
+		"user_currency": currentCurrency(r),
+		"show_currency": false,
+		/*
+			"currencies":        currencies,
+			"order":             order.GetOrder(),
+			"total_paid":        &totalPaid,
+			"recommendations":   recommendations,
+			"platform_css":      plat.css,
+			"platform_name":     plat.provider,
+			"is_cymbal_brand":   isCymbalBrand,
+			"deploymentDetails": deploymentDetailsMap,
+		*/
+	})
+
+	// log.Debug("Test printf")
+	// log.Debug(tpl.String())
+
+	if err = templates.ExecuteTemplate(w, "login", map[string]interface{}{
+		"session_id":    sessionID(r),
+		"request_id":    r.Context().Value(ctxKeyRequestID{}),
+		"user_currency": currentCurrency(r),
+		"show_currency": false,
+		/*
+			"currencies":        currencies,
+			"order":             order.GetOrder(),
+			"total_paid":        &totalPaid,
+			"recommendations":   recommendations,
+			"platform_css":      plat.css,
+			"platform_name":     plat.provider,
+			"is_cymbal_brand":   isCymbalBrand,
+			"deploymentDetails": deploymentDetailsMap,
+		*/
+	}); err != nil {
+		log.Println(err)
+	}
+
+	/*
+		for _, c := range r.Cookies() {
+			c.Expires = time.Now().Add(-time.Hour * 24 * 365)
+			c.MaxAge = -1
+			http.SetCookie(w, c)
+		}
+		w.Header().Set("Location", "/")
+		w.WriteHeader(http.StatusFound)
+	*/
 }
 
 func (fe *frontendServer) logoutHandler(w http.ResponseWriter, r *http.Request) {
