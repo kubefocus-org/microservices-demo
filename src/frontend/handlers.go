@@ -54,6 +54,13 @@ var validEnvs = []string{"local", "gcp", "azure", "aws", "onprem", "alibaba"}
 
 func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
+
+	if !isAuthenticated(r) {
+		log.Info("User is not authenticated. Redirecting to login page")
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+
 	log.WithField("currency", currentCurrency(r)).Info("home")
 	currencies, err := fe.getCurrencies(r.Context())
 	if err != nil {
@@ -99,6 +106,11 @@ func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 		env = "gcp"
 	}
 
+	session, err := sessionStore.Get(r, sessionName)
+	if err != nil {
+		log.Debugf("Unable to get session %s from session store", sessionName)
+	}
+
 	log.Debugf("ENV_PLATFORM is: %s", env)
 	plat = platformDetails{}
 	plat.setPlatformDetails(strings.ToLower(env))
@@ -117,6 +129,7 @@ func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 		"platform_name":     plat.provider,
 		"is_cymbal_brand":   isCymbalBrand,
 		"deploymentDetails": deploymentDetailsMap,
+		"sessionUsername":   session.Get(sessionUsername),
 	}); err != nil {
 		log.Error(err)
 	}

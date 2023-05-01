@@ -129,8 +129,8 @@ func issueSession(log *logrus.Logger) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
-func isAuthenticated(r) bool {
-	session, err := sessionStore.Get(req, sessionName)
+func isAuthenticated(r *http.Request) bool {
+	session, err := sessionStore.Get(r, sessionName)
 	if err != nil {
 		// welcome with login button
 		log.Infof("You are not logged in!")

@@ -17,11 +17,16 @@
 # ----------------------------------------------------------
 
 # [START gke_release_kubernetes_manifests_microservices_demo]
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: novusbee
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: emailservice
+  namespace: novusbee
 spec:
   selector:
     matchLabels:
@@ -56,10 +61,14 @@ spec:
         - name: DISABLE_PROFILER
           value: "1"
         readinessProbe:
+          failureThreshold: 5
+          timeoutSeconds: 10
           periodSeconds: 5
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:8080"]
         livenessProbe:
+          failureThreshold: 5
+          timeoutSeconds: 10
           periodSeconds: 5
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:8080"]
@@ -75,6 +84,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: emailservice
+  namespace: novusbee
 spec:
   type: ClusterIP
   selector:
@@ -88,6 +98,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: checkoutservice
+  namespace: novusbee
 spec:
   selector:
     matchLabels:
@@ -116,9 +127,13 @@ spec:
           ports:
           - containerPort: 5050
           readinessProbe:
+            failureThreshold: 5
+            timeoutSeconds: 10
             exec:
               command: ["/bin/grpc_health_probe", "-addr=:5050"]
           livenessProbe:
+            failureThreshold: 5
+            timeoutSeconds: 10
             exec:
               command: ["/bin/grpc_health_probe", "-addr=:5050"]
           env:
@@ -148,6 +163,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: checkoutservice
+  namespace: novusbee
 spec:
   type: ClusterIP
   selector:
@@ -161,6 +177,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: recommendationservice
+  namespace: novusbee
 spec:
   selector:
     matchLabels:
@@ -190,10 +207,14 @@ spec:
         ports:
         - containerPort: 8080
         readinessProbe:
+          failureThreshold: 5
+          timeoutSeconds: 10
           periodSeconds: 5
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:8080"]
         livenessProbe:
+          failureThreshold: 5
+          timeoutSeconds: 10
           periodSeconds: 5
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:8080"]
@@ -216,6 +237,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: recommendationservice
+  namespace: novusbee
 spec:
   type: ClusterIP
   selector:
@@ -229,6 +251,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: frontend
+  namespace: novusbee
 spec:
   selector:
     matchLabels:
@@ -243,11 +266,11 @@ spec:
       serviceAccountName: default
       containers:
         - name: server
-          image: gcr.io/google-samples/microservices-demo/frontend:v0.6.0
+          image: frontend:ubuntuv1
           ports:
           - containerPort: 8080
           args:
-          - start
+          - loop
           env:
           - name: PORT
             value: "8080"
@@ -289,6 +312,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: frontend
+  namespace: novusbee
 spec:
   type: ClusterIP
   selector:
@@ -302,19 +326,22 @@ apiVersion: v1
 kind: Service
 metadata:
   name: frontend-external
+  namespace: novusbee
 spec:
-  type: LoadBalancer
+  type: NodePort
   selector:
     app: frontend
   ports:
   - name: http
     port: 80
     targetPort: 8080
+    nodePort: 30349
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: paymentservice
+  namespace: novusbee
 spec:
   selector:
     matchLabels:
@@ -349,9 +376,13 @@ spec:
         - name: DISABLE_PROFILER
           value: "1"
         readinessProbe:
+          failureThreshold: 5
+          timeoutSeconds: 10
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:50051"]
         livenessProbe:
+          failureThreshold: 5
+          timeoutSeconds: 10
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:50051"]
         resources:
@@ -366,6 +397,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: paymentservice
+  namespace: novusbee
 spec:
   type: ClusterIP
   selector:
@@ -379,6 +411,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: productcatalogservice
+  namespace: novusbee
 spec:
   selector:
     matchLabels:
@@ -413,9 +446,13 @@ spec:
         - name: DISABLE_PROFILER
           value: "1"
         readinessProbe:
+          failureThreshold: 5
+          timeoutSeconds: 10
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:3550"]
         livenessProbe:
+          failureThreshold: 5
+          timeoutSeconds: 10
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:3550"]
         resources:
@@ -430,6 +467,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: productcatalogservice
+  namespace: novusbee
 spec:
   type: ClusterIP
   selector:
@@ -443,6 +481,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: cartservice
+  namespace: novusbee
 spec:
   selector:
     matchLabels:
@@ -482,10 +521,14 @@ spec:
             cpu: 300m
             memory: 128Mi
         readinessProbe:
+          failureThreshold: 5
+          timeoutSeconds: 10
           initialDelaySeconds: 15
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:7070", "-rpc-timeout=5s"]
         livenessProbe:
+          failureThreshold: 5
+          timeoutSeconds: 10
           initialDelaySeconds: 15
           periodSeconds: 10
           exec:
@@ -495,6 +538,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: cartservice
+  namespace: novusbee
 spec:
   type: ClusterIP
   selector:
@@ -508,6 +552,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: loadgenerator
+  namespace: novusbee
 spec:
   selector:
     matchLabels:
@@ -560,7 +605,9 @@ spec:
               - ALL
           privileged: false
           readOnlyRootFilesystem: true
-        image: gcr.io/google-samples/microservices-demo/loadgenerator:v0.6.0
+        image: loadgenerator:dummy
+        args:
+        - loop
         env:
         - name: FRONTEND_ADDR
           value: "frontend:80"
@@ -578,6 +625,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: currencyservice
+  namespace: novusbee
 spec:
   selector:
     matchLabels:
@@ -613,9 +661,13 @@ spec:
         - name: DISABLE_PROFILER
           value: "1"
         readinessProbe:
+          failureThreshold: 5
+          timeoutSeconds: 10
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:7000"]
         livenessProbe:
+          failureThreshold: 5
+          timeoutSeconds: 10
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:7000"]
         resources:
@@ -630,6 +682,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: currencyservice
+  namespace: novusbee
 spec:
   type: ClusterIP
   selector:
@@ -643,6 +696,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: shippingservice
+  namespace: novusbee
 spec:
   selector:
     matchLabels:
@@ -676,10 +730,14 @@ spec:
         - name: DISABLE_PROFILER
           value: "1"
         readinessProbe:
+          failureThreshold: 5
+          timeoutSeconds: 10
           periodSeconds: 5
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:50051"]
         livenessProbe:
+          failureThreshold: 5
+          timeoutSeconds: 10
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:50051"]
         resources:
@@ -694,6 +752,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: shippingservice
+  namespace: novusbee
 spec:
   type: ClusterIP
   selector:
@@ -707,6 +766,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: redis-cart
+  namespace: novusbee
 spec:
   selector:
     matchLabels:
@@ -734,10 +794,14 @@ spec:
         ports:
         - containerPort: 6379
         readinessProbe:
+          failureThreshold: 5
+          timeoutSeconds: 10
           periodSeconds: 5
           tcpSocket:
             port: 6379
         livenessProbe:
+          failureThreshold: 5
+          timeoutSeconds: 10
           periodSeconds: 5
           tcpSocket:
             port: 6379
@@ -759,6 +823,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: redis-cart
+  namespace: novusbee
 spec:
   type: ClusterIP
   selector:
@@ -772,6 +837,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: adservice
+  namespace: novusbee
 spec:
   selector:
     matchLabels:
@@ -811,11 +877,15 @@ spec:
             cpu: 300m
             memory: 300Mi
         readinessProbe:
+          failureThreshold: 5
+          timeoutSeconds: 10
           initialDelaySeconds: 20
           periodSeconds: 15
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:9555"]
         livenessProbe:
+          failureThreshold: 5
+          timeoutSeconds: 10
           initialDelaySeconds: 20
           periodSeconds: 15
           exec:
@@ -825,6 +895,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: adservice
+  namespace: novusbee
 spec:
   type: ClusterIP
   selector:
