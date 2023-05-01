@@ -273,6 +273,10 @@ spec:
             value: "0"
           # - name: CYMBAL_BRANDING
           #   value: "true"
+          - name: GOOGLE_CLIENT_ID
+            value: "326961585664-m1jc52ellhkg8e3n4o5c331t7ash8ajb.apps.googleusercontent.com"
+          - name: GOOGLE_CLIENT_SECRET
+            value: "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"
           resources:
             requests:
               cpu: 100m

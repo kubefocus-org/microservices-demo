@@ -16,6 +16,8 @@ FROM ubuntu:22.04
 RUN apt update
 RUN apt install -y ca-certificates busybox \
     net-tools bind9 bind9utils bind9-doc dnsutils
+RUN apt update
+RUN apt install -y vim
 WORKDIR /src
 COPY bin/frontend /src/server
 COPY ./templates ./templates
