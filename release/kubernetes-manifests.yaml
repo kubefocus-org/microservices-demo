@@ -270,7 +270,7 @@ spec:
           ports:
           - containerPort: 8080
           args:
-          - loop
+          - start
           env:
           - name: PORT
             value: "8080"
