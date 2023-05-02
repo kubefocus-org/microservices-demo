@@ -61,14 +61,10 @@ spec:
         - name: DISABLE_PROFILER
           value: "1"
         readinessProbe:
-          failureThreshold: 5
-          timeoutSeconds: 10
           periodSeconds: 5
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:8080"]
         livenessProbe:
-          failureThreshold: 5
-          timeoutSeconds: 10
           periodSeconds: 5
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:8080"]
@@ -127,13 +123,9 @@ spec:
           ports:
           - containerPort: 5050
           readinessProbe:
-            failureThreshold: 5
-            timeoutSeconds: 10
             exec:
               command: ["/bin/grpc_health_probe", "-addr=:5050"]
           livenessProbe:
-            failureThreshold: 5
-            timeoutSeconds: 10
             exec:
               command: ["/bin/grpc_health_probe", "-addr=:5050"]
           env:
@@ -207,14 +199,10 @@ spec:
         ports:
         - containerPort: 8080
         readinessProbe:
-          failureThreshold: 5
-          timeoutSeconds: 10
           periodSeconds: 5
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:8080"]
         livenessProbe:
-          failureThreshold: 5
-          timeoutSeconds: 10
           periodSeconds: 5
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:8080"]
@@ -376,13 +364,9 @@ spec:
         - name: DISABLE_PROFILER
           value: "1"
         readinessProbe:
-          failureThreshold: 5
-          timeoutSeconds: 10
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:50051"]
         livenessProbe:
-          failureThreshold: 5
-          timeoutSeconds: 10
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:50051"]
         resources:
@@ -446,13 +430,9 @@ spec:
         - name: DISABLE_PROFILER
           value: "1"
         readinessProbe:
-          failureThreshold: 5
-          timeoutSeconds: 10
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:3550"]
         livenessProbe:
-          failureThreshold: 5
-          timeoutSeconds: 10
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:3550"]
         resources:
@@ -521,14 +501,10 @@ spec:
             cpu: 300m
             memory: 128Mi
         readinessProbe:
-          failureThreshold: 5
-          timeoutSeconds: 10
           initialDelaySeconds: 15
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:7070", "-rpc-timeout=5s"]
         livenessProbe:
-          failureThreshold: 5
-          timeoutSeconds: 10
           initialDelaySeconds: 15
           periodSeconds: 10
           exec:
@@ -661,13 +637,9 @@ spec:
         - name: DISABLE_PROFILER
           value: "1"
         readinessProbe:
-          failureThreshold: 5
-          timeoutSeconds: 10
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:7000"]
         livenessProbe:
-          failureThreshold: 5
-          timeoutSeconds: 10
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:7000"]
         resources:
@@ -730,14 +702,10 @@ spec:
         - name: DISABLE_PROFILER
           value: "1"
         readinessProbe:
-          failureThreshold: 5
-          timeoutSeconds: 10
           periodSeconds: 5
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:50051"]
         livenessProbe:
-          failureThreshold: 5
-          timeoutSeconds: 10
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:50051"]
         resources:
@@ -794,14 +762,10 @@ spec:
         ports:
         - containerPort: 6379
         readinessProbe:
-          failureThreshold: 5
-          timeoutSeconds: 10
           periodSeconds: 5
           tcpSocket:
             port: 6379
         livenessProbe:
-          failureThreshold: 5
-          timeoutSeconds: 10
           periodSeconds: 5
           tcpSocket:
             port: 6379
@@ -877,15 +841,11 @@ spec:
             cpu: 300m
             memory: 300Mi
         readinessProbe:
-          failureThreshold: 5
-          timeoutSeconds: 10
           initialDelaySeconds: 20
           periodSeconds: 15
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:9555"]
         livenessProbe:
-          failureThreshold: 5
-          timeoutSeconds: 10
           initialDelaySeconds: 20
           periodSeconds: 15
           exec:
