@@ -1,0 +1,18 @@
+apiVersion: appez.novusbee.com/v1beta1
+kind: Context
+metadata:
+  name: firefox
+  namespace: novusbee
+spec:
+  moduleRefs:
+    - apiVersion: apps/v1
+      name: frontend
+      kind: Deployment
+      containers:
+      - name: server
+        image: registry.gitlab.com/novusbee/microservices/frontend-firefox:ubuntuv1
+    - apiVersion: apps/v1
+      kind: Service
+      name: frontend
+      ports:
+      - type: ClusterIp

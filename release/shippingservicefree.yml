@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shippingfreeservice
+  namespace: novusbee
+spec:
+  selector:
+    matchLabels:
+      app: shippingfreeservice
+  template:
+    metadata:
+      labels:
+        app: shippingfreeservice
+    spec:
+      serviceAccountName: default
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+      imagePullSecrets:
+      - name: gitlab-pull-secret
+      containers:
+      - name: server
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          privileged: false
+          readOnlyRootFilesystem: true
+        image: registry.gitlab.com/novusbee/microservices/shippingservice:freeshipping
+        ports:
+        - containerPort: 50051
+        env:
+        - name: PORT
+          value: "50051"
+        - name: DISABLE_PROFILER
+          value: "1"
+        readinessProbe:
+          periodSeconds: 5
+          exec:
+            command: ["/bin/grpc_health_probe", "-addr=:50051"]
+        livenessProbe:
+          exec:
+            command: ["/bin/grpc_health_probe", "-addr=:50051"]
+        resources:
+          requests:
+            cpu: 100m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shippingfreeservice
+  namespace: novusbee
+spec:
+  type: ClusterIP
+  selector:
+    app: shippingfreeservice
+  ports:
+  - name: grpc
+    port: 50051
+    targetPort: 50051

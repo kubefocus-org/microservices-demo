@@ -30,6 +30,7 @@ import (
 
 	pb "github.com/GoogleCloudPlatform/microservices-demo/src/shippingservice/genproto"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
+	gm "google.golang.org/grpc/metadata"
 )
 
 const (
@@ -116,8 +117,18 @@ func (s *server) GetQuote(ctx context.Context, in *pb.GetQuoteRequest) (*pb.GetQ
 	log.Info("[GetQuote] received request")
 	defer log.Info("[GetQuote] completed request")
 
+	items := in.GetItems()
+	numItems := len(items)
+
+	md, ok := gm.FromIncomingContext(ctx)
+	log.Infof("[GetQuote] metadata is %v; present %v", md, ok)
+	if ok {
+		value := md.Get("AppEz-Context")
+		log.Infof("[GetQuote] AppEz-Context value in metadata is %v; AppEz-Context is %s", value, value[0])
+	}
+
 	// 1. Generate a quote based on the total number of items to be shipped.
-	quote := CreateQuoteFromCount(0)
+	quote := CreateQuoteFromCount(numItems)
 
 	// 2. Generate a response.
 	return &pb.GetQuoteResponse{

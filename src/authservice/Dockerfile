@@ -19,7 +19,7 @@ RUN apt install -y ca-certificates busybox \
 RUN apt update
 RUN apt install -y vim curl iputils-ping
 WORKDIR /src
-COPY bin/frontend /src/server
+COPY bin/authservice /src/server
 COPY ./templates ./templates
 COPY ./static ./static
 COPY ./docker-entrypoint.sh ./docker-entrypoint.sh

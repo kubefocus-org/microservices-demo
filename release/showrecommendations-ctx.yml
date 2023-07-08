@@ -1,0 +1,16 @@
+apiVersion: appez.novusbee.com/v1beta1
+kind: Context
+metadata:
+  name: showrecommendations
+  namespace: novusbee
+spec:
+  moduleRefs:
+    - apiVersion: apps/v1
+      name: recommendationservice
+      kind: Deployment
+      containers:
+      - name: server
+        image: gcr.io/google-samples/microservices-demo/recommendationservice:v0.6.0
+    - apiVersion: apps/v1
+      kind: Service
+      name: recommendationservice

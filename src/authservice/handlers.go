@@ -19,8 +19,8 @@ import (
 	"context"
 	"fmt"
 	"html/template"
+	"io"
 	"math/rand"
-	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -31,8 +31,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
-	pb "github.com/GoogleCloudPlatform/microservices-demo/src/frontend/genproto"
-	"github.com/GoogleCloudPlatform/microservices-demo/src/frontend/money"
+	pb "github.com/GoogleCloudPlatform/microservices-demo/src/authservice/genproto"
+	"github.com/GoogleCloudPlatform/microservices-demo/src/authservice/money"
 )
 
 type platformDetails struct {
@@ -61,85 +61,50 @@ func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Loop over header names
-	for name, values := range r.Header {
-		// Loop over all values for the name.
-		for _, value := range values {
-			log.Infof("Name: %+v, Value: %+v", name, value)
+	log.Infof("Proxying request %v to frontend:8080", r.URL)
+	// we need to buffer the body if we want to read it here and send it
+	// in the request.
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// you can reassign the body if you need to parse it as multipart
+	r.Body = io.NopCloser(bytes.NewReader(body))
+
+	// create a new url from the raw RequestURI sent by the client
+	url := fmt.Sprintf("http://frontend:8080%s", r.RequestURI)
+
+	proxyReq, err := http.NewRequest(r.Method, url, bytes.NewReader(body))
+
+	// We may want to filter some headers, otherwise we could just use a shallow copy
+	// proxyReq.Header = req.Header
+	proxyReq.Header = make(http.Header)
+	for h, val := range r.Header {
+		proxyReq.Header[h] = val
+	}
+
+	httpClient := http.Client{}
+	resp, err := httpClient.Do(proxyReq)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Step 4: copy payload to response writer
+	copyHeader(w.Header(), resp.Header)
+	w.WriteHeader(resp.StatusCode)
+	io.Copy(w, resp.Body)
+}
+
+// copyHeader and singleJoiningSlash are copy from "/net/http/httputil/reverseproxy.go"
+func copyHeader(dst, src http.Header) {
+	for k, vv := range src {
+		for _, v := range vv {
+			dst.Add(k, v)
 		}
-	}
-
-	log.WithField("currency", currentCurrency(r)).Info("home")
-	currencies, err := fe.getCurrencies(r.Context())
-	if err != nil {
-		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve currencies"), http.StatusInternalServerError)
-		return
-	}
-	products, err := fe.getProducts(r.Context())
-	if err != nil {
-		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve products"), http.StatusInternalServerError)
-		return
-	}
-	cart, err := fe.getCart(r.Context(), sessionID(r))
-	if err != nil {
-		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve cart"), http.StatusInternalServerError)
-		return
-	}
-
-	type productView struct {
-		Item  *pb.Product
-		Price *pb.Money
-	}
-	ps := make([]productView, len(products))
-	for i, p := range products {
-		price, err := fe.convertCurrency(r.Context(), p.GetPriceUsd(), currentCurrency(r))
-		if err != nil {
-			renderHTTPError(log, r, w, errors.Wrapf(err, "failed to do currency conversion for product %s", p.GetId()), http.StatusInternalServerError)
-			return
-		}
-		ps[i] = productView{p, price}
-	}
-
-	// Set ENV_PLATFORM (default to local if not set; use env var if set; otherwise detect GCP, which overrides env)_
-	var env = os.Getenv("ENV_PLATFORM")
-	// Only override from env variable if set + valid env
-	if env == "" || stringinSlice(validEnvs, env) == false {
-		fmt.Println("env platform is either empty or invalid")
-		env = "local"
-	}
-	// Autodetect GCP
-	addrs, err := net.LookupHost("metadata.google.internal.")
-	if err == nil && len(addrs) >= 0 {
-		log.Debugf("Detected Google metadata server: %v, setting ENV_PLATFORM to GCP.", addrs)
-		env = "gcp"
-	}
-
-	session, err := sessionStore.Get(r, sessionName)
-	if err != nil {
-		log.Debugf("Unable to get session %s from session store", sessionName)
-	}
-
-	log.Debugf("ENV_PLATFORM is: %s", env)
-	plat = platformDetails{}
-	plat.setPlatformDetails(strings.ToLower(env))
-
-	if err := templates.ExecuteTemplate(w, "home", map[string]interface{}{
-		"session_id":        sessionID(r),
-		"request_id":        r.Context().Value(ctxKeyRequestID{}),
-		"user_currency":     currentCurrency(r),
-		"show_currency":     true,
-		"currencies":        currencies,
-		"products":          ps,
-		"cart_size":         cartSize(cart),
-		"banner_color":      os.Getenv("BANNER_COLOR"), // illustrates canary deployments
-		"ad":                fe.chooseAd(r.Context(), []string{}, log),
-		"platform_css":      plat.css,
-		"platform_name":     plat.provider,
-		"is_cymbal_brand":   isCymbalBrand,
-		"deploymentDetails": deploymentDetailsMap,
-		"sessionUsername":   session.Get(sessionUsername),
-	}); err != nil {
-		log.Error(err)
 	}
 }
 

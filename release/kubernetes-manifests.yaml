@@ -24,6 +24,16 @@ metadata:
   annotations:
     linkerd.io/inject: "enabled"
 ---
+# A secret to pull container from gitlab registry
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/dockerconfigjson
+metadata:
+  name: gitlab-pull-secret
+  namespace: novusbee
+data:
+  .dockerconfigjson: ewoJImF1dGhzIjogewoJCSJyZWdpc3RyeS5naXRsYWIuY29tIjogewoJCQkiYXV0aCI6ICJibWx1WVd0cllUcDJjVEoyZUhrMlZGQXhNMWxxZUdsVU5sUXpSUT09IiwKCQkJImVtYWlsIjogIm5pbmFra2FAbm92dXNiZWUuY29tIgoJCX0KCX0KfQ==
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -45,6 +55,8 @@ spec:
         runAsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
+      imagePullSecrets:
+      - name: gitlab-pull-secret
       containers:
       - name: server
         securityContext:
@@ -112,6 +124,8 @@ spec:
         runAsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
+      imagePullSecrets:
+      - name: gitlab-pull-secret
       containers:
         - name: server
           securityContext:
@@ -188,6 +202,8 @@ spec:
         runAsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
+      imagePullSecrets:
+      - name: gitlab-pull-secret
       containers:
       - name: server
         securityContext:
@@ -254,9 +270,12 @@ spec:
         sidecar.istio.io/rewriteAppHTTPProbers: "true"
     spec:
       serviceAccountName: default
+      imagePullSecrets:
+      - name: gitlab-pull-secret
       containers:
         - name: server
-          image: frontend:ubuntuv1
+          image: registry.gitlab.com/novusbee/microservices/frontend:ubuntuv1
+          imagePullPolicy: Always
           ports:
           - containerPort: 8080
           args:
@@ -312,21 +331,6 @@ spec:
     port: 80
     targetPort: 8080
 ---
-apiVersion: v1
-kind: Service
-metadata:
-  name: frontend-external
-  namespace: novusbee
-spec:
-  type: NodePort
-  selector:
-    app: frontend
-  ports:
-  - name: http
-    port: 80
-    targetPort: 8080
-    nodePort: 30349
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -348,6 +352,8 @@ spec:
         runAsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
+      imagePullSecrets:
+      - name: gitlab-pull-secret
       containers:
       - name: server
         securityContext:
@@ -414,6 +420,8 @@ spec:
         runAsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
+      imagePullSecrets:
+      - name: gitlab-pull-secret
       containers:
       - name: server
         securityContext:
@@ -480,6 +488,8 @@ spec:
         runAsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
+      imagePullSecrets:
+      - name: gitlab-pull-secret
       containers:
       - name: server
         securityContext:
@@ -574,6 +584,8 @@ spec:
         env:
         - name: FRONTEND_ADDR
           value: "frontend:80"
+      imagePullSecrets:
+      - name: gitlab-pull-secret
       containers:
       - name: main
         securityContext:
@@ -583,7 +595,7 @@ spec:
               - ALL
           privileged: false
           readOnlyRootFilesystem: true
-        image: loadgenerator:dummy
+        image: registry.gitlab.com/novusbee/microservices/loadgenerator:dummy
         args:
         - loop
         env:
@@ -620,6 +632,8 @@ spec:
         runAsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
+      imagePullSecrets:
+      - name: gitlab-pull-secret
       containers:
       - name: server
         securityContext:
@@ -686,6 +700,8 @@ spec:
         runAsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
+      imagePullSecrets:
+      - name: gitlab-pull-secret
       containers:
       - name: server
         securityContext:
@@ -751,6 +767,8 @@ spec:
         runAsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
+      imagePullSecrets:
+      - name: gitlab-pull-secret
       containers:
       - name: redis
         securityContext:
@@ -820,6 +838,8 @@ spec:
         runAsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
+      imagePullSecrets:
+      - name: gitlab-pull-secret
       containers:
       - name: server
         securityContext:

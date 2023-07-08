@@ -1,0 +1,16 @@
+apiVersion: appez.novusbee.com/v1beta1
+kind: Context
+metadata:
+  name: freeshipping
+  namespace: novusbee
+spec:
+  moduleRefs:
+    - apiVersion: apps/v1
+      name: shippingservice
+      kind: Deployment
+      containers:
+      - name: server
+        image: registry.gitlab.com/novusbee/microservices/shippingservice:freeshipping
+    - apiVersion: apps/v1
+      kind: Service
+      name: shippingservice

@@ -97,6 +97,7 @@ type frontendServer struct {
 
 	shippingSvcAddr string
 	shippingSvcConn *grpc.ClientConn
+	// shippingFreeSvcConn *grpc.ClientConn
 
 	adSvcAddr string
 	adSvcConn *grpc.ClientConn
@@ -131,8 +132,6 @@ func issueSession(log logrus.FieldLogger) http.Handler {
 }
 
 func isAuthenticated(r *http.Request, log logrus.FieldLogger) bool {
-	return true
-
 	session, err := sessionStore.Get(r, sessionName)
 	if err != nil {
 		// welcome with login button
@@ -263,20 +262,22 @@ func main() {
 	mustConnGRPC(ctx, &svc.cartSvcConn, svc.cartSvcAddr)
 	mustConnGRPC(ctx, &svc.recommendationSvcConn, svc.recommendationSvcAddr)
 	mustConnGRPC(ctx, &svc.shippingSvcConn, svc.shippingSvcAddr)
+	// mustConnGRPC(ctx, &svc.shippingFreeSvcConn, "shippingfreeservice:50051")
 	mustConnGRPC(ctx, &svc.checkoutSvcConn, svc.checkoutSvcAddr)
 	mustConnGRPC(ctx, &svc.adSvcConn, svc.adSvcAddr)
 
 	r := mux.NewRouter()
-	r.HandleFunc("/", svc.homeHandler).Methods(http.MethodGet, http.MethodHead)
-	r.HandleFunc("/product/{id}", svc.productHandler).Methods(http.MethodGet, http.MethodHead)
-	r.HandleFunc("/cart", svc.viewCartHandler).Methods(http.MethodGet, http.MethodHead)
-	r.HandleFunc("/cart", svc.addToCartHandler).Methods(http.MethodPost)
-	r.HandleFunc("/cart/empty", svc.emptyCartHandler).Methods(http.MethodPost)
-	r.HandleFunc("/setCurrency", svc.setCurrencyHandler).Methods(http.MethodPost)
-	r.HandleFunc("/logout", svc.logoutHandler).Methods(http.MethodGet)
+	s := r.PathPrefix("/").Subrouter()
+	s.HandleFunc("/", svc.homeHandler).Methods(http.MethodGet, http.MethodHead)
 	r.HandleFunc("/login", svc.loginHandler).Methods(http.MethodGet)
-	r.HandleFunc("/cart/checkout", svc.placeOrderHandler).Methods(http.MethodPost)
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
+	r.HandleFunc("/product/{id}", svc.homeHandler).Methods(http.MethodGet, http.MethodHead)
+	r.HandleFunc("/cart", svc.homeHandler).Methods(http.MethodGet, http.MethodHead)
+	r.HandleFunc("/cart", svc.homeHandler).Methods(http.MethodPost)
+	r.HandleFunc("/cart/empty", svc.homeHandler).Methods(http.MethodPost)
+	r.HandleFunc("/setCurrency", svc.homeHandler).Methods(http.MethodPost)
+	r.HandleFunc("/logout", svc.homeHandler).Methods(http.MethodGet)
+	r.HandleFunc("/cart/checkout", svc.homeHandler).Methods(http.MethodPost)
 	r.HandleFunc("/robots.txt", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "User-agent: *\nDisallow: /") })
 	r.HandleFunc("/_healthz", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "ok") })
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("/src/static"))))
@@ -294,9 +295,9 @@ func main() {
 	r.Handle("/google/callback", google.StateHandler(stateConfig, google.CallbackHandler(oauth2Config, issueSession(log), nil)))
 
 	var handler http.Handler = r
-	handler = &logHandler{log: log, next: handler}     // add logging
-	handler = ensureSessionID(handler)                 // add session ID
-	handler = otelhttp.NewHandler(handler, "frontend") // add OTel tracing
+	handler = &logHandler{log: log, next: handler}        // add logging
+	handler = ensureSessionID(handler)                    // add session ID
+	handler = otelhttp.NewHandler(handler, "authservice") // add OTel tracing
 
 	log.Infof("starting server on " + addr + ":" + srvPort)
 	log.Fatal(http.ListenAndServe(addr+":"+srvPort, handler))
