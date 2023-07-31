@@ -21,11 +21,13 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"cloud.google.com/go/profiler"
 	"github.com/dghubble/gologin/v2"
+	"github.com/dghubble/gologin/v2/github"
 	"github.com/dghubble/gologin/v2/google"
 	"github.com/dghubble/sessions"
 	"github.com/gorilla/mux"
@@ -38,6 +40,7 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"golang.org/x/oauth2"
+	githubOAuth2 "golang.org/x/oauth2/github"
 	googleOAuth2 "golang.org/x/oauth2/google"
 	"google.golang.org/grpc"
 )
@@ -51,11 +54,12 @@ const (
 	cookieSessionID = cookiePrefix + "session-id"
 	cookieCurrency  = cookiePrefix + "currency"
 
-	sessionName      = "example-google-app"
 	sessionSecret    = "example cookie signing secret"
-	sessionUserKey   = "googleID"
-	sessionUsername  = "googleName"
-	sessionUserEmail = "googleEmail"
+	sessionName      = "example-app"
+	sessionLoginType = "userLoginType"
+	sessionUserKey   = "userID"
+	sessionUsername  = "userName"
+	sessionUserEmail = "userEmail"
 )
 
 var (
@@ -73,8 +77,10 @@ var sessionStore = sessions.NewCookieStore[string](sessions.DebugCookieConfig, [
 
 // Config configures the main ServeMux.
 type Config struct {
-	ClientID     string
-	ClientSecret string
+	GoogleClientID     string
+	GoogleClientSecret string
+	GithubClientID     string
+	GithubClientSecret string
 }
 
 type ctxKeySessionID struct{}
@@ -107,20 +113,52 @@ type frontendServer struct {
 }
 
 // issueSession issues a cookie session after successful Google login
-func issueSession(log logrus.FieldLogger) http.Handler {
+func googleIssueSession(log logrus.FieldLogger) http.Handler {
 	fn := func(w http.ResponseWriter, req *http.Request) {
+		log.Infof("Hello I am entering googleIssueSession")
 		ctx := req.Context()
 		googleUser, err := google.UserFromContext(ctx)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		log.Infof("googleUser: %+v", googleUser)
 		// 2. Implement a success handler to issue some form of session
 		session := sessionStore.New(sessionName)
+		session.Set(sessionLoginType, "Google")
 		session.Set(sessionUserKey, googleUser.Id)
 		session.Set(sessionUsername, googleUser.Name)
 		session.Set(sessionUserEmail, googleUser.Email)
-		log.Infof("googleUser: %+v", googleUser)
+		log.Infof("session: %+v", session)
+		if err := session.Save(w); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		http.Redirect(w, req, "/", http.StatusFound)
+	}
+	return http.HandlerFunc(fn)
+}
+
+// issueSession issues a cookie session after successful Google login
+func githubIssueSession(log logrus.FieldLogger) http.Handler {
+	fn := func(w http.ResponseWriter, req *http.Request) {
+		log.Infof("Hello I am entering githubIssueSession")
+		ctx := req.Context()
+		githubUser, err := github.UserFromContext(ctx)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		log.Infof("githubUser: %+v", githubUser)
+		log.Infof("githubID: %+v, %+v, %+v", githubUser.ID, *githubUser.ID, strconv.FormatInt(*githubUser.ID, 10))
+		log.Infof("githubName: %+v, %+v", githubUser.Name, *githubUser.Name)
+		log.Infof("githubEmail: %+v, %+v", githubUser.Email, *githubUser.Email)
+		// 2. Implement a success handler to issue some form of session
+		session := sessionStore.New(sessionName)
+		session.Set(sessionLoginType, "Github")
+		session.Set(sessionUserKey, strconv.FormatInt(*githubUser.ID, 10))
+		session.Set(sessionUsername, *githubUser.Name)
+		session.Set(sessionUserEmail, *githubUser.Email)
 		log.Infof("session: %+v", session)
 		if err := session.Save(w); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -138,37 +176,37 @@ func isAuthenticated(r *http.Request, log logrus.FieldLogger) bool {
 		log.Infof("You are not logged in!")
 		return false
 	}
-	// authenticated profile
+
 	log.Infof("You are logged in %s!", session.Get(sessionUsername))
 
-	appEzCtx := r.Header.Get("AppEz-Context")
-	log.Infof("AppEz-Context is %v", appEzCtx)
-	if appEzCtx != "" {
+	tenantName := r.Header.Get("Tenantname")
+	log.Infof("tenantName is %v", tenantName)
+	if tenantName != "" {
 		return true
 	}
 
-	r.Header.Set("AppEz-Context", "AppEz--Ctx--Default")
-	appEzCtx = r.Header.Get("appEzCtx")
-	log.Infof("appEzCtx is %v", appEzCtx)
+	r.Header.Set("Tenantname", "Default")
+	tenantName = r.Header.Get("Tenantname")
+	log.Infof("tenantName is %v", tenantName)
 
-	if strings.Contains(session.Get(sessionUsername), "Nithin") {
+	if session.Get(sessionLoginType) == "Google" && strings.Contains(session.Get(sessionUsername), "Nithin") {
 		// This is for free shipping
-		log.Infof("Setting AppEz-Context header for user Nithin to free-shipping")
-		r.Header.Set("AppEz-Context", "free-shipping")
-		appEzCtx = r.Header.Get("AppEz-Context")
-		log.Infof("appEzCtx is %v", appEzCtx)
+		log.Infof("Setting tenantName header for user Nithin to Nithin")
+		r.Header.Set("Tenantname", "Nithin")
+		tenantName = r.Header.Get("Tenantname")
+		log.Infof("tenantName is %v", tenantName)
 		return true
-	} else if strings.Contains(session.Get(sessionUsername), "Novus") {
+	} else if session.Get(sessionLoginType) == "Google" && strings.Contains(session.Get(sessionUsername), "Novus") {
 		// This is for showing recommendations
-		log.Infof("Setting AppEz-Context header for user Novus to show-recommendations")
-		r.Header.Set("AppEz-Context", "show-recommendations")
-		appEzCtx = r.Header.Get("AppEz-Context")
-		log.Infof("appEzCtx is %v", appEzCtx)
+		log.Infof("Setting tenantName header for user Temp to Novus")
+		r.Header.Set("Tenantname", "Novus")
+		tenantName = r.Header.Get("Tenantname")
+		log.Infof("tenantName is %v", tenantName)
 		return true
 	} else {
-		log.Infof("Set AppEz-Context header for all other users to default (AppEz--Ctx--Default)")
-		appEzCtx = r.Header.Get("AppEz-Context")
-		log.Infof("appEzCtx is %v", appEzCtx)
+		log.Infof("Set tenantName header for all other users to Default")
+		tenantName = r.Header.Get("Tenantname")
+		log.Infof("tenantName is %v", tenantName)
 		return true
 	}
 
@@ -229,24 +267,43 @@ func main() {
 
 	// read credentials from environment variables if available
 	config := &Config{
-		ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
-		ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+		GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
+		GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+		GithubClientID:     os.Getenv("GITHUB_CLIENT_ID"),
+		GithubClientSecret: os.Getenv("GITHUB_CLIENT_SECRET"),
 	}
 	// allow consumer credential flags to override config fields
-	clientID := flag.String("client-id", "", "Google Client ID")
-	clientSecret := flag.String("client-secret", "", "Google Client Secret")
+	googleClientID := flag.String("google-client-id", "", "Google Client ID")
+	googleClientSecret := flag.String("google-client-secret", "", "Google Client Secret")
+	githubClientID := flag.String("github-client-id", "", "Github Client ID")
+	githubClientSecret := flag.String("github-client-secret", "", "Github Client Secret")
 	flag.Parse()
-	if *clientID != "" {
-		config.ClientID = *clientID
+	if *googleClientID != "" {
+		config.GoogleClientID = *googleClientID
 	}
-	if *clientSecret != "" {
-		config.ClientSecret = *clientSecret
+	if *googleClientSecret != "" {
+		config.GoogleClientSecret = *googleClientSecret
 	}
-	if config.ClientID == "" {
+	if *githubClientID != "" {
+		config.GithubClientID = *githubClientID
+	}
+	if *githubClientSecret != "" {
+		config.GithubClientSecret = *githubClientSecret
+	}
+
+	log.Infof("Config: %+v", config)
+
+	if config.GoogleClientID == "" {
 		log.Fatal("Missing Google Client ID")
 	}
-	if config.ClientSecret == "" {
+	if config.GoogleClientSecret == "" {
 		log.Fatal("Missing Google Client Secret")
+	}
+	if config.GithubClientID == "" {
+		log.Fatal("Missing Github Client ID")
+	}
+	if config.GithubClientSecret == "" {
+		log.Fatal("Missing Github Client Secret")
 	}
 
 	mustMapEnv(&svc.productCatalogSvcAddr, "PRODUCT_CATALOG_SERVICE_ADDR")
@@ -282,17 +339,26 @@ func main() {
 	r.HandleFunc("/_healthz", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "ok") })
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("/src/static"))))
 	// 1. Register Login and Callback handlers
-	oauth2Config := &oauth2.Config{
-		ClientID:     config.ClientID,
-		ClientSecret: config.ClientSecret,
+	googleOauth2Config := &oauth2.Config{
+		ClientID:     config.GoogleClientID,
+		ClientSecret: config.GoogleClientSecret,
 		RedirectURL:  "http://multiusertest.novusbee.com:20080/google/callback",
 		Endpoint:     googleOAuth2.Endpoint,
 		Scopes:       []string{"profile", "email"},
 	}
+	githubOauth2Config := &oauth2.Config{
+		ClientID:     config.GithubClientID,
+		ClientSecret: config.GithubClientSecret,
+		RedirectURL:  "http://multiusertest.novusbee.com:20080/github/callback",
+		Endpoint:     githubOAuth2.Endpoint,
+		Scopes:       []string{"profile", "email"},
+	}
 	// state param cookies require HTTPS by default; disable for localhost development
 	stateConfig := gologin.DebugOnlyCookieConfig
-	r.Handle("/google/login", google.StateHandler(stateConfig, google.LoginHandler(oauth2Config, nil)))
-	r.Handle("/google/callback", google.StateHandler(stateConfig, google.CallbackHandler(oauth2Config, issueSession(log), nil)))
+	r.Handle("/google/login", google.StateHandler(stateConfig, google.LoginHandler(googleOauth2Config, nil)))
+	r.Handle("/google/callback", google.StateHandler(stateConfig, google.CallbackHandler(googleOauth2Config, googleIssueSession(log), nil)))
+	r.Handle("/github/login", github.StateHandler(stateConfig, github.LoginHandler(githubOauth2Config, nil)))
+	r.Handle("/github/callback", github.StateHandler(stateConfig, github.CallbackHandler(githubOauth2Config, githubIssueSession(log), nil)))
 
 	var handler http.Handler = r
 	handler = &logHandler{log: log, next: handler}        // add logging

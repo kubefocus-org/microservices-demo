@@ -41,6 +41,7 @@ var log *logrus.Logger
 
 func init() {
 	log = logrus.New()
+	log.SetReportCaller(true)
 	log.Level = logrus.DebugLevel
 	log.Formatter = &logrus.JSONFormatter{
 		FieldMap: logrus.FieldMap{
@@ -123,8 +124,8 @@ func (s *server) GetQuote(ctx context.Context, in *pb.GetQuoteRequest) (*pb.GetQ
 	md, ok := gm.FromIncomingContext(ctx)
 	log.Infof("[GetQuote] metadata is %v; present %v", md, ok)
 	if ok {
-		value := md.Get("AppEz-Context")
-		log.Infof("[GetQuote] AppEz-Context value in metadata is %v; AppEz-Context is %s", value, value[0])
+		value := md.Get("Tenantname")
+		log.Infof("[GetQuote] Tenantname value in metadata is %v; Tenantname is %s", value, value[0])
 	}
 
 	// 1. Generate a quote based on the total number of items to be shipped.

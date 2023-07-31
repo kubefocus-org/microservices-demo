@@ -40,10 +40,11 @@ spec:
       containers:
         - name: server
           image: registry.gitlab.com/novusbee/microservices/authservice:ubuntuv1
+          imagePullPolicy: Always
           ports:
           - containerPort: 8080
           args:
-          - loop
+          - start
           env:
           - name: PORT
             value: "8080"
@@ -73,6 +74,10 @@ spec:
             value: "326961585664-m1jc52ellhkg8e3n4o5c331t7ash8ajb.apps.googleusercontent.com"
           - name: GOOGLE_CLIENT_SECRET
             value: "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"
+          - name: GITHUB_CLIENT_ID
+            value: "Iv1.c871486562a58a18"
+          - name: GITHUB_CLIENT_SECRET
+            value: "dc763456b98d9a7f3a09ec181d4675571300dc47"
           resources:
             requests:
               cpu: 100m

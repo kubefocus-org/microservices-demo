@@ -51,11 +51,11 @@ const (
 	cookieSessionID = cookiePrefix + "session-id"
 	cookieCurrency  = cookiePrefix + "currency"
 
-	sessionName      = "example-google-app"
+	sessionName      = "example-app"
 	sessionSecret    = "example cookie signing secret"
-	sessionUserKey   = "googleID"
-	sessionUsername  = "googleName"
-	sessionUserEmail = "googleEmail"
+	sessionUserKey   = "userID"
+	sessionUsername  = "userName"
+	sessionUserEmail = "userEmail"
 )
 
 var (
@@ -142,34 +142,34 @@ func isAuthenticated(r *http.Request, log logrus.FieldLogger) bool {
 	// authenticated profile
 	log.Infof("You are logged in %s!", session.Get(sessionUsername))
 
-	appEzCtx := r.Header.Get("AppEz-Context")
-	log.Infof("AppEz-Context is %v", appEzCtx)
-	if appEzCtx != "" {
+	tenantName := r.Header.Get("Tenantname")
+	log.Infof("tenantName is %v", tenantName)
+	if tenantName != "" {
 		return true
 	}
 
-	r.Header.Set("AppEz-Context", "AppEz--Ctx--Default")
-	appEzCtx = r.Header.Get("appEzCtx")
-	log.Infof("appEzCtx is %v", appEzCtx)
+	r.Header.Set("Tenantname", "Default")
+	tenantName = r.Header.Get("Tenantname")
+	log.Infof("tenantName is %v", tenantName)
 
 	if strings.Contains(session.Get(sessionUsername), "Nithin") {
 		// This is for free shipping
-		log.Infof("Setting AppEz-Context header for user Nithin to free-shipping")
-		r.Header.Set("AppEz-Context", "free-shipping")
-		appEzCtx = r.Header.Get("AppEz-Context")
-		log.Infof("appEzCtx is %v", appEzCtx)
+		log.Infof("Setting tenantName header for user Nithin to Nithin")
+		r.Header.Set("Tenantname", "Nithin")
+		tenantName = r.Header.Get("Tenantname")
+		log.Infof("tenantName is %v", tenantName)
 		return true
-	} else if strings.Contains(session.Get(sessionUsername), "Novus") {
+	} else if strings.Contains(session.Get(sessionUsername), "Temp") {
 		// This is for showing recommendations
-		log.Infof("Setting AppEz-Context header for user Novus to show-recommendations")
-		r.Header.Set("AppEz-Context", "show-recommendations")
-		appEzCtx = r.Header.Get("AppEz-Context")
-		log.Infof("appEzCtx is %v", appEzCtx)
+		log.Infof("Setting tenantName header for user Temp to Novus")
+		r.Header.Set("Tenantname", "Novus")
+		tenantName = r.Header.Get("Tenantname")
+		log.Infof("tenantName is %v", tenantName)
 		return true
 	} else {
-		log.Infof("Set AppEz-Context header for all other users to default (AppEz--Ctx--Default)")
-		appEzCtx = r.Header.Get("AppEz-Context")
-		log.Infof("appEzCtx is %v", appEzCtx)
+		log.Infof("Set tenantName header for all other users to Default")
+		tenantName = r.Header.Get("Tenantname")
+		log.Infof("tenantName is %v", tenantName)
 		return true
 	}
 
@@ -191,6 +191,7 @@ func handleAuth(f http.HandlerFunc, log logrus.FieldLogger) http.HandlerFunc {
 func main() {
 	ctx := context.Background()
 	log := logrus.New()
+	log.SetReportCaller(true)
 	log.Level = logrus.DebugLevel
 	log.Formatter = &logrus.JSONFormatter{
 		FieldMap: logrus.FieldMap{

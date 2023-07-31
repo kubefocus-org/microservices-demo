@@ -274,7 +274,7 @@ spec:
       - name: gitlab-pull-secret
       containers:
         - name: server
-          image: registry.gitlab.com/novusbee/microservices/frontend:ubuntuv1
+          image: registry.gitlab.com/novusbee/microservices/frontend:ubuntuv2
           imagePullPolicy: Always
           ports:
           - containerPort: 8080
@@ -309,6 +309,10 @@ spec:
             value: "326961585664-m1jc52ellhkg8e3n4o5c331t7ash8ajb.apps.googleusercontent.com"
           - name: GOOGLE_CLIENT_SECRET
             value: "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"
+          - name: GITHUB_CLIENT_ID
+            value: "Iv1.c871486562a58a18"
+          - name: GITHUB_CLIENT_SECRET
+            value: "dc763456b98d9a7f3a09ec181d4675571300dc47"
           resources:
             requests:
               cpu: 100m
@@ -566,8 +570,8 @@ spec:
         - /bin/sh
         - -exc
         - |
-          echo "Init container pinging frontend: ${FRONTEND_ADDR}..."
-          STATUSCODE=$(wget --server-response http://${FRONTEND_ADDR} 2>&1 | awk '/^  HTTP/{print $2}')
+          echo "Init container pinging authservice: ${AUTHSERVICE_ADDR}..."
+          STATUSCODE=$(wget --server-response http://${AUTHSERVICE_ADDR} 2>&1 | awk '/^  HTTP/{print $2}')
           if test $STATUSCODE -ne 200; then
               echo "Error: Could not reach frontend - Status code: ${STATUSCODE}"
               exit 1
@@ -582,8 +586,8 @@ spec:
           readOnlyRootFilesystem: true
         image: busybox:latest
         env:
-        - name: FRONTEND_ADDR
-          value: "frontend:80"
+        - name: AUTHSERVICE_ADDR
+          value: "authservice:80"
       imagePullSecrets:
       - name: gitlab-pull-secret
       containers:
@@ -599,8 +603,8 @@ spec:
         args:
         - loop
         env:
-        - name: FRONTEND_ADDR
-          value: "frontend:80"
+        - name: AUTHSERVICE_ADDR
+          value: "authservice:80"
         - name: USERS
           value: "10"
         resources:
@@ -886,4 +890,25 @@ spec:
   - name: grpc
     port: 9555
     targetPort: 9555
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  creationTimestamp: null
+  name: poddepl
+  namespace: novusbee
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - list
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - list
+
 # [END gke_release_kubernetes_manifests_microservices_demo]

@@ -86,10 +86,9 @@ func (fe *frontendServer) convertCurrency(ctx context.Context, money *pb.Money, 
 			ToCode: currency})
 }
 
-func (fe *frontendServer) getShippingQuote(ctx context.Context, items []*pb.CartItem, currency string, appEzCtx string) (*pb.Money, error) {
+func (fe *frontendServer) getShippingQuote(ctx context.Context, items []*pb.CartItem, currency string, tenantName string) (*pb.Money, error) {
 	var quote *pb.GetQuoteResponse
 	var err error
-	log := ctx.Value(ctxKeyLog{}).(logrus.FieldLogger)
 	/*
 		log.Debugf("contextId is %v", contextId)
 		if contextId == "2" {
@@ -107,26 +106,68 @@ func (fe *frontendServer) getShippingQuote(ctx context.Context, items []*pb.Cart
 					Items:   items})
 		}
 	*/
-	log.Infof("Received appEzCtx as %v", appEzCtx)
+	log := ctx.Value(ctxKeyLog{}).(logrus.FieldLogger)
+	log.Infof("Received tenantName as %v", tenantName)
+
+	md, ok := gm.FromOutgoingContext(ctx)
+	log.Infof("[GetRecommendations] metadata is %v; present %v", md, ok)
+	if ok {
+		value := md.Get("Tenantname")
+		log.Infof("[GetRecommendations] Tenantname value in metadata is %v; Tenantname is %s", value, value[0])
+	}
+
+	// log.Infof("Inserted Tenantname grpc metadata")
 	quote, err = pb.NewShippingServiceClient(fe.shippingSvcConn).GetQuote(
-		gm.AppendToOutgoingContext(ctx, "AppEz-Context", appEzCtx),
+		gm.AppendToOutgoingContext(ctx, "Tenantname", tenantName),
 		&pb.GetQuoteRequest{
 			Address: nil,
 			Items:   items})
 	if err != nil {
 		return nil, err
 	}
+
+	md, ok = gm.FromOutgoingContext(ctx)
+	log.Infof("[GetRecommendations] metadata is %v; present %v", md, ok)
+	if ok {
+		value := md.Get("Tenantname")
+		log.Infof("[GetRecommendations] Tenantname value in metadata is %v; Tenantname is %s", value, value[0])
+	}
+
+	// log.Infof("Inserted Tenantname grpc metadata")
 	localized, err := fe.convertCurrency(ctx, quote.GetCostUsd(), currency)
 	return localized, errors.Wrap(err, "failed to convert currency for shipping cost")
 }
 
-func (fe *frontendServer) getRecommendations(ctx context.Context, userID string, productIDs []string, appEzCtx string) ([]*pb.Product, error) {
-	resp, err := pb.NewRecommendationServiceClient(fe.recommendationSvcConn).ListRecommendations(
-		gm.AppendToOutgoingContext(ctx, "AppEz-Context", appEzCtx),
+func (fe *frontendServer) getRecommendations(ctx context.Context, userID string, productIDs []string, tenantName string) ([]*pb.Product, error) {
+	log := ctx.Value(ctxKeyLog{}).(logrus.FieldLogger)
+	log.Infof("Received tenantName as %v, userID %v, productIDs %v, addr %v, conn %v", tenantName, userID, productIDs, fe.recommendationSvcAddr, fe.recommendationSvcConn)
+
+	md, ok := gm.FromOutgoingContext(ctx)
+	log.Infof("[GetRecommendations] metadata is %v; present %v", md, ok)
+	if ok {
+		value := md.Get("Tenantname")
+		log.Infof("[GetRecommendations] Tenantname value in metadata is %v; Tenantname is %s", value, value[0])
+	}
+
+	client := pb.NewRecommendationServiceClient(fe.recommendationSvcConn)
+
+	ctx = gm.AppendToOutgoingContext(ctx, "Tenantname", tenantName)
+
+	log.Infof("Got client for recommendation service %v", client)
+	resp, err := client.ListRecommendations(ctx,
 		&pb.ListRecommendationsRequest{UserId: userID, ProductIds: productIDs})
 	if err != nil {
 		return nil, err
 	}
+
+	md, ok = gm.FromOutgoingContext(ctx)
+	log.Infof("[GetRecommendations] metadata is %v; present %v", md, ok)
+	if ok {
+		value := md.Get("Tenantname")
+		log.Infof("[GetRecommendations] Tenantname value in metadata is %v; Tenantname is %s", value, value[0])
+	}
+
+	// log.Infof("Inserted Tenantname grpc metadata")
 	out := make([]*pb.Product, len(resp.GetProductIds()))
 	for i, v := range resp.GetProductIds() {
 		p, err := fe.getProduct(ctx, v)
