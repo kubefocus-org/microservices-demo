@@ -16,12 +16,18 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/profiler"
+	"github.com/dghubble/gologin/v2"
+	"github.com/dghubble/gologin/v2/google"
+	"github.com/dghubble/sessions"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -31,6 +37,8 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"golang.org/x/oauth2"
+	googleOAuth2 "golang.org/x/oauth2/google"
 	"google.golang.org/grpc"
 )
 
@@ -42,6 +50,12 @@ const (
 	cookiePrefix    = "shop_"
 	cookieSessionID = cookiePrefix + "session-id"
 	cookieCurrency  = cookiePrefix + "currency"
+
+	sessionName      = "example-app"
+	sessionSecret    = "example cookie signing secret"
+	sessionUserKey   = "userID"
+	sessionUsername  = "userName"
+	sessionUserEmail = "userEmail"
 )
 
 var (
@@ -53,6 +67,15 @@ var (
 		"GBP": true,
 		"TRY": true}
 )
+
+// sessionStore encodes and decodes session data stored in signed cookies
+var sessionStore = sessions.NewCookieStore[string](sessions.DebugCookieConfig, []byte(sessionSecret), nil)
+
+// Config configures the main ServeMux.
+type Config struct {
+	ClientID     string
+	ClientSecret string
+}
 
 type ctxKeySessionID struct{}
 
@@ -82,9 +105,93 @@ type frontendServer struct {
 	collectorConn *grpc.ClientConn
 }
 
+// issueSession issues a cookie session after successful Google login
+func issueSession(log logrus.FieldLogger) http.Handler {
+	fn := func(w http.ResponseWriter, req *http.Request) {
+		ctx := req.Context()
+		googleUser, err := google.UserFromContext(ctx)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		// 2. Implement a success handler to issue some form of session
+		session := sessionStore.New(sessionName)
+		session.Set(sessionUserKey, googleUser.Id)
+		session.Set(sessionUsername, googleUser.Name)
+		session.Set(sessionUserEmail, googleUser.Email)
+		log.Infof("googleUser: %+v", googleUser)
+		log.Infof("session: %+v", session)
+		if err := session.Save(w); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		http.Redirect(w, req, "/", http.StatusFound)
+	}
+	return http.HandlerFunc(fn)
+}
+
+func isAuthenticated(r *http.Request, log logrus.FieldLogger) bool {
+	return true
+
+	session, err := sessionStore.Get(r, sessionName)
+	if err != nil {
+		// welcome with login button
+		log.Infof("You are not logged in!")
+		return false
+	}
+	// authenticated profile
+	log.Infof("You are logged in %s!", session.Get(sessionUsername))
+
+	tenantName := r.Header.Get("Tenantname")
+	log.Infof("tenantName is %v", tenantName)
+	if tenantName != "" {
+		return true
+	}
+
+	r.Header.Set("Tenantname", "Default")
+	tenantName = r.Header.Get("Tenantname")
+	log.Infof("tenantName is %v", tenantName)
+
+	if strings.Contains(session.Get(sessionUsername), "Nithin") {
+		// This is for free shipping
+		log.Infof("Setting tenantName header for user Nithin to Nithin")
+		r.Header.Set("Tenantname", "Nithin")
+		tenantName = r.Header.Get("Tenantname")
+		log.Infof("tenantName is %v", tenantName)
+		return true
+	} else if strings.Contains(session.Get(sessionUsername), "Temp") {
+		// This is for showing recommendations
+		log.Infof("Setting tenantName header for user Temp to Novus")
+		r.Header.Set("Tenantname", "Novus")
+		tenantName = r.Header.Get("Tenantname")
+		log.Infof("tenantName is %v", tenantName)
+		return true
+	} else {
+		log.Infof("Set tenantName header for all other users to Default")
+		tenantName = r.Header.Get("Tenantname")
+		log.Infof("tenantName is %v", tenantName)
+		return true
+	}
+
+	return true
+}
+
+func handleAuth(f http.HandlerFunc, log logrus.FieldLogger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if valid := isAuthenticated(r, log); !valid {
+			w.WriteHeader(http.StatusUnauthorized)
+			io.WriteString(w, "Invalid token or Client not authenticated.")
+			return // this return is *very* important
+		}
+		// Now call the actual handler, which is authenticated
+		f(w, r)
+	}
+}
+
 func main() {
 	ctx := context.Background()
 	log := logrus.New()
+	log.SetReportCaller(true)
 	log.Level = logrus.DebugLevel
 	log.Formatter = &logrus.JSONFormatter{
 		FieldMap: logrus.FieldMap{
@@ -121,6 +228,29 @@ func main() {
 		srvPort = os.Getenv("PORT")
 	}
 	addr := os.Getenv("LISTEN_ADDR")
+
+	// read credentials from environment variables if available
+	config := &Config{
+		ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
+		ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+	}
+	// allow consumer credential flags to override config fields
+	clientID := flag.String("client-id", "", "Google Client ID")
+	clientSecret := flag.String("client-secret", "", "Google Client Secret")
+	flag.Parse()
+	if *clientID != "" {
+		config.ClientID = *clientID
+	}
+	if *clientSecret != "" {
+		config.ClientSecret = *clientSecret
+	}
+	if config.ClientID == "" {
+		log.Fatal("Missing Google Client ID")
+	}
+	if config.ClientSecret == "" {
+		log.Fatal("Missing Google Client Secret")
+	}
+
 	mustMapEnv(&svc.productCatalogSvcAddr, "PRODUCT_CATALOG_SERVICE_ADDR")
 	mustMapEnv(&svc.currencySvcAddr, "CURRENCY_SERVICE_ADDR")
 	mustMapEnv(&svc.cartSvcAddr, "CART_SERVICE_ADDR")
@@ -145,10 +275,24 @@ func main() {
 	r.HandleFunc("/cart/empty", svc.emptyCartHandler).Methods(http.MethodPost)
 	r.HandleFunc("/setCurrency", svc.setCurrencyHandler).Methods(http.MethodPost)
 	r.HandleFunc("/logout", svc.logoutHandler).Methods(http.MethodGet)
+	r.HandleFunc("/login", svc.loginHandler).Methods(http.MethodGet)
 	r.HandleFunc("/cart/checkout", svc.placeOrderHandler).Methods(http.MethodPost)
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
 	r.HandleFunc("/robots.txt", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "User-agent: *\nDisallow: /") })
 	r.HandleFunc("/_healthz", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "ok") })
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("/src/static"))))
+	// 1. Register Login and Callback handlers
+	oauth2Config := &oauth2.Config{
+		ClientID:     config.ClientID,
+		ClientSecret: config.ClientSecret,
+		RedirectURL:  "http://multiusertest.novusbee.com:20080/google/callback",
+		Endpoint:     googleOAuth2.Endpoint,
+		Scopes:       []string{"profile", "email"},
+	}
+	// state param cookies require HTTPS by default; disable for localhost development
+	stateConfig := gologin.DebugOnlyCookieConfig
+	r.Handle("/google/login", google.StateHandler(stateConfig, google.LoginHandler(oauth2Config, nil)))
+	r.Handle("/google/callback", google.StateHandler(stateConfig, google.CallbackHandler(oauth2Config, issueSession(log), nil)))
 
 	var handler http.Handler = r
 	handler = &logHandler{log: log, next: handler}     // add logging

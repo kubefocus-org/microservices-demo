@@ -1,0 +1,23 @@
+apiVersion: policy.linkerd.io/v1beta2
+kind: HTTPRoute
+metadata:
+  name: freeshipping
+  namespace: novusbee
+spec:
+  parentRefs:
+    - name: shippingservice
+      kind: Service
+      group: core
+      port: 50051
+  rules:
+    - matches:
+      - headers:
+        - type: "Exact"
+          name: "AppEz-Context"
+          value: "free-shipping"
+      backendRefs:
+        - name: shippingservice--appezctx--freeshipping
+          port: 50051
+    - backendRefs:
+      - name: shippingservice
+        port: 50051

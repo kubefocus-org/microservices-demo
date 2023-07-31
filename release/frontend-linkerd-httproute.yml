@@ -1,0 +1,29 @@
+apiVersion: policy.linkerd.io/v1beta2
+kind: HTTPRoute
+metadata:
+  name: frontend-a-b
+  namespace: novusbee
+spec:
+  parentRefs:
+    - name: frontend
+      kind: Service
+      group: core
+      port: 80
+  rules:
+    - matches:
+      - headers:
+        - type: "RegularExpression"
+          name: "User-Agent"
+          value: ".*Firefox.*"
+      backendRefs:
+        - name: frontend--appezctx--firefox
+          port: 80
+      filters:
+      - type: RequestHeaderModifier
+        requestHeaderModifier:
+          add:
+          - name: "AppEz-Context"
+            value: "firefox"
+    - backendRefs:
+      - name: frontend
+        port: 80

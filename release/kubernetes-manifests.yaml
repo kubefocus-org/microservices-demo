@@ -17,11 +17,28 @@
 # ----------------------------------------------------------
 
 # [START gke_release_kubernetes_manifests_microservices_demo]
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: novusbee
+  annotations:
+    linkerd.io/inject: "enabled"
+---
+# A secret to pull container from gitlab registry
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/dockerconfigjson
+metadata:
+  name: gitlab-pull-secret
+  namespace: novusbee
+data:
+  .dockerconfigjson: ewoJImF1dGhzIjogewoJCSJyZWdpc3RyeS5naXRsYWIuY29tIjogewoJCQkiYXV0aCI6ICJibWx1WVd0cllUcDJjVEoyZUhrMlZGQXhNMWxxZUdsVU5sUXpSUT09IiwKCQkJImVtYWlsIjogIm5pbmFra2FAbm92dXNiZWUuY29tIgoJCX0KCX0KfQ==
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: emailservice
+  namespace: novusbee
 spec:
   selector:
     matchLabels:
@@ -38,6 +55,8 @@ spec:
         runAsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
+      imagePullSecrets:
+      - name: gitlab-pull-secret
       containers:
       - name: server
         securityContext:
@@ -75,6 +94,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: emailservice
+  namespace: novusbee
 spec:
   type: ClusterIP
   selector:
@@ -88,6 +108,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: checkoutservice
+  namespace: novusbee
 spec:
   selector:
     matchLabels:
@@ -103,6 +124,8 @@ spec:
         runAsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
+      imagePullSecrets:
+      - name: gitlab-pull-secret
       containers:
         - name: server
           securityContext:
@@ -148,6 +171,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: checkoutservice
+  namespace: novusbee
 spec:
   type: ClusterIP
   selector:
@@ -161,6 +185,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: recommendationservice
+  namespace: novusbee
 spec:
   selector:
     matchLabels:
@@ -177,6 +202,8 @@ spec:
         runAsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
+      imagePullSecrets:
+      - name: gitlab-pull-secret
       containers:
       - name: server
         securityContext:
@@ -216,6 +243,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: recommendationservice
+  namespace: novusbee
 spec:
   type: ClusterIP
   selector:
@@ -229,6 +257,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: frontend
+  namespace: novusbee
 spec:
   selector:
     matchLabels:
@@ -241,39 +270,16 @@ spec:
         sidecar.istio.io/rewriteAppHTTPProbers: "true"
     spec:
       serviceAccountName: default
-      securityContext:
-        fsGroup: 1000
-        runAsGroup: 1000
-        runAsNonRoot: true
-        runAsUser: 1000
+      imagePullSecrets:
+      - name: gitlab-pull-secret
       containers:
         - name: server
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
-            privileged: false
-            readOnlyRootFilesystem: true
-          image: gcr.io/google-samples/microservices-demo/frontend:v0.6.0
+          image: registry.gitlab.com/novusbee/microservices/frontend:ubuntuv2
+          imagePullPolicy: Always
           ports:
           - containerPort: 8080
-          readinessProbe:
-            initialDelaySeconds: 10
-            httpGet:
-              path: "/_healthz"
-              port: 8080
-              httpHeaders:
-              - name: "Cookie"
-                value: "shop_session-id=x-readiness-probe"
-          livenessProbe:
-            initialDelaySeconds: 10
-            httpGet:
-              path: "/_healthz"
-              port: 8080
-              httpHeaders:
-              - name: "Cookie"
-                value: "shop_session-id=x-liveness-probe"
+          args:
+          - start
           env:
           - name: PORT
             value: "8080"
@@ -299,6 +305,14 @@ spec:
             value: "0"
           # - name: CYMBAL_BRANDING
           #   value: "true"
+          - name: GOOGLE_CLIENT_ID
+            value: "326961585664-m1jc52ellhkg8e3n4o5c331t7ash8ajb.apps.googleusercontent.com"
+          - name: GOOGLE_CLIENT_SECRET
+            value: "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"
+          - name: GITHUB_CLIENT_ID
+            value: "Iv1.c871486562a58a18"
+          - name: GITHUB_CLIENT_SECRET
+            value: "dc763456b98d9a7f3a09ec181d4675571300dc47"
           resources:
             requests:
               cpu: 100m
@@ -311,21 +325,9 @@ apiVersion: v1
 kind: Service
 metadata:
   name: frontend
+  namespace: novusbee
 spec:
   type: ClusterIP
-  selector:
-    app: frontend
-  ports:
-  - name: http
-    port: 80
-    targetPort: 8080
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: frontend-external
-spec:
-  type: LoadBalancer
   selector:
     app: frontend
   ports:
@@ -337,6 +339,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: paymentservice
+  namespace: novusbee
 spec:
   selector:
     matchLabels:
@@ -353,6 +356,8 @@ spec:
         runAsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
+      imagePullSecrets:
+      - name: gitlab-pull-secret
       containers:
       - name: server
         securityContext:
@@ -388,6 +393,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: paymentservice
+  namespace: novusbee
 spec:
   type: ClusterIP
   selector:
@@ -401,6 +407,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: productcatalogservice
+  namespace: novusbee
 spec:
   selector:
     matchLabels:
@@ -417,6 +424,8 @@ spec:
         runAsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
+      imagePullSecrets:
+      - name: gitlab-pull-secret
       containers:
       - name: server
         securityContext:
@@ -452,6 +461,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: productcatalogservice
+  namespace: novusbee
 spec:
   type: ClusterIP
   selector:
@@ -465,6 +475,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: cartservice
+  namespace: novusbee
 spec:
   selector:
     matchLabels:
@@ -481,6 +492,8 @@ spec:
         runAsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
+      imagePullSecrets:
+      - name: gitlab-pull-secret
       containers:
       - name: server
         securityContext:
@@ -517,6 +530,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: cartservice
+  namespace: novusbee
 spec:
   type: ClusterIP
   selector:
@@ -530,6 +544,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: loadgenerator
+  namespace: novusbee
 spec:
   selector:
     matchLabels:
@@ -555,8 +570,8 @@ spec:
         - /bin/sh
         - -exc
         - |
-          echo "Init container pinging frontend: ${FRONTEND_ADDR}..."
-          STATUSCODE=$(wget --server-response http://${FRONTEND_ADDR} 2>&1 | awk '/^  HTTP/{print $2}')
+          echo "Init container pinging authservice: ${AUTHSERVICE_ADDR}..."
+          STATUSCODE=$(wget --server-response http://${AUTHSERVICE_ADDR} 2>&1 | awk '/^  HTTP/{print $2}')
           if test $STATUSCODE -ne 200; then
               echo "Error: Could not reach frontend - Status code: ${STATUSCODE}"
               exit 1
@@ -571,8 +586,10 @@ spec:
           readOnlyRootFilesystem: true
         image: busybox:latest
         env:
-        - name: FRONTEND_ADDR
-          value: "frontend:80"
+        - name: AUTHSERVICE_ADDR
+          value: "authservice:80"
+      imagePullSecrets:
+      - name: gitlab-pull-secret
       containers:
       - name: main
         securityContext:
@@ -582,10 +599,12 @@ spec:
               - ALL
           privileged: false
           readOnlyRootFilesystem: true
-        image: gcr.io/google-samples/microservices-demo/loadgenerator:v0.6.0
+        image: registry.gitlab.com/novusbee/microservices/loadgenerator:dummy
+        args:
+        - loop
         env:
-        - name: FRONTEND_ADDR
-          value: "frontend:80"
+        - name: AUTHSERVICE_ADDR
+          value: "authservice:80"
         - name: USERS
           value: "10"
         resources:
@@ -600,6 +619,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: currencyservice
+  namespace: novusbee
 spec:
   selector:
     matchLabels:
@@ -616,6 +636,8 @@ spec:
         runAsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
+      imagePullSecrets:
+      - name: gitlab-pull-secret
       containers:
       - name: server
         securityContext:
@@ -652,6 +674,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: currencyservice
+  namespace: novusbee
 spec:
   type: ClusterIP
   selector:
@@ -665,6 +688,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: shippingservice
+  namespace: novusbee
 spec:
   selector:
     matchLabels:
@@ -680,6 +704,8 @@ spec:
         runAsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
+      imagePullSecrets:
+      - name: gitlab-pull-secret
       containers:
       - name: server
         securityContext:
@@ -716,6 +742,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: shippingservice
+  namespace: novusbee
 spec:
   type: ClusterIP
   selector:
@@ -729,6 +756,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: redis-cart
+  namespace: novusbee
 spec:
   selector:
     matchLabels:
@@ -743,6 +771,8 @@ spec:
         runAsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
+      imagePullSecrets:
+      - name: gitlab-pull-secret
       containers:
       - name: redis
         securityContext:
@@ -781,6 +811,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: redis-cart
+  namespace: novusbee
 spec:
   type: ClusterIP
   selector:
@@ -794,6 +825,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: adservice
+  namespace: novusbee
 spec:
   selector:
     matchLabels:
@@ -810,6 +842,8 @@ spec:
         runAsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
+      imagePullSecrets:
+      - name: gitlab-pull-secret
       containers:
       - name: server
         securityContext:
@@ -847,6 +881,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: adservice
+  namespace: novusbee
 spec:
   type: ClusterIP
   selector:
@@ -855,4 +890,25 @@ spec:
   - name: grpc
     port: 9555
     targetPort: 9555
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  creationTimestamp: null
+  name: poddepl
+  namespace: novusbee
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - list
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - list
+
 # [END gke_release_kubernetes_manifests_microservices_demo]

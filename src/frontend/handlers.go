@@ -15,6 +15,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"html/template"
@@ -53,6 +54,21 @@ var validEnvs = []string{"local", "gcp", "azure", "aws", "onprem", "alibaba"}
 
 func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
+
+	if !isAuthenticated(r, log) {
+		log.Info("User is not authenticated. Redirecting to login page")
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+
+	// Loop over header names
+	for name, values := range r.Header {
+		// Loop over all values for the name.
+		for _, value := range values {
+			log.Infof("Name: %+v, Value: %+v", name, value)
+		}
+	}
+
 	log.WithField("currency", currentCurrency(r)).Info("home")
 	currencies, err := fe.getCurrencies(r.Context())
 	if err != nil {
@@ -98,6 +114,11 @@ func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 		env = "gcp"
 	}
 
+	session, err := sessionStore.Get(r, sessionName)
+	if err != nil {
+		log.Debugf("Unable to get session %s from session store", sessionName)
+	}
+
 	log.Debugf("ENV_PLATFORM is: %s", env)
 	plat = platformDetails{}
 	plat.setPlatformDetails(strings.ToLower(env))
@@ -116,6 +137,7 @@ func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 		"platform_name":     plat.provider,
 		"is_cymbal_brand":   isCymbalBrand,
 		"deploymentDetails": deploymentDetailsMap,
+		"sessionUsername":   session.Get(sessionUsername),
 	}); err != nil {
 		log.Error(err)
 	}
@@ -153,6 +175,14 @@ func (fe *frontendServer) productHandler(w http.ResponseWriter, r *http.Request)
 	log.WithField("id", id).WithField("currency", currentCurrency(r)).
 		Debug("serving product page")
 
+	// Loop over header names
+	for name, values := range r.Header {
+		// Loop over all values for the name.
+		for _, value := range values {
+			log.Infof("Name: %+v, Value: %+v", name, value)
+		}
+	}
+
 	p, err := fe.getProduct(r.Context(), id)
 	if err != nil {
 		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve product"), http.StatusInternalServerError)
@@ -177,7 +207,7 @@ func (fe *frontendServer) productHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	// ignores the error retrieving recommendations since it is not critical
-	recommendations, err := fe.getRecommendations(r.Context(), sessionID(r), []string{id})
+	recommendations, err := fe.getRecommendations(r.Context(), sessionID(r), []string{id}, r.Header.Get("Tenantname"))
 	if err != nil {
 		log.WithField("error", err).Warn("failed to get product recommendations")
 	}
@@ -245,6 +275,13 @@ func (fe *frontendServer) emptyCartHandler(w http.ResponseWriter, r *http.Reques
 func (fe *frontendServer) viewCartHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
 	log.Debug("view user cart")
+
+	if !isAuthenticated(r, log) {
+		log.Info("User is not authenticated. Redirecting to login page")
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+
 	currencies, err := fe.getCurrencies(r.Context())
 	if err != nil {
 		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve currencies"), http.StatusInternalServerError)
@@ -257,12 +294,12 @@ func (fe *frontendServer) viewCartHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	// ignores the error retrieving recommendations since it is not critical
-	recommendations, err := fe.getRecommendations(r.Context(), sessionID(r), cartIDs(cart))
+	recommendations, err := fe.getRecommendations(r.Context(), sessionID(r), cartIDs(cart), r.Header.Get("Tenantname"))
 	if err != nil {
 		log.WithField("error", err).Warn("failed to get product recommendations")
 	}
 
-	shippingCost, err := fe.getShippingQuote(r.Context(), cart, currentCurrency(r))
+	shippingCost, err := fe.getShippingQuote(r.Context(), cart, currentCurrency(r), r.Header.Get("Tenantname"))
 	if err != nil {
 		renderHTTPError(log, r, w, errors.Wrap(err, "failed to get shipping quote"), http.StatusInternalServerError)
 		return
@@ -359,7 +396,7 @@ func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Reque
 	log.WithField("order", order.GetOrder().GetOrderId()).Info("order placed")
 
 	order.GetOrder().GetItems()
-	recommendations, _ := fe.getRecommendations(r.Context(), sessionID(r), nil)
+	recommendations, _ := fe.getRecommendations(r.Context(), sessionID(r), nil, r.Header.Get("Tenantname"))
 
 	totalPaid := *order.GetOrder().GetShippingCost()
 	for _, v := range order.GetOrder().GetItems() {
@@ -389,6 +426,61 @@ func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Reque
 	}); err != nil {
 		log.Println(err)
 	}
+}
+
+func (fe *frontendServer) loginHandler(w http.ResponseWriter, r *http.Request) {
+	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
+	log.Debug("login screen")
+
+	var tpl bytes.Buffer
+	err := templates.ExecuteTemplate(&tpl, "login", map[string]interface{}{
+		"session_id":    sessionID(r),
+		"request_id":    r.Context().Value(ctxKeyRequestID{}),
+		"user_currency": currentCurrency(r),
+		"show_currency": false,
+		/*
+			"currencies":        currencies,
+			"order":             order.GetOrder(),
+			"total_paid":        &totalPaid,
+			"recommendations":   recommendations,
+			"platform_css":      plat.css,
+			"platform_name":     plat.provider,
+			"is_cymbal_brand":   isCymbalBrand,
+			"deploymentDetails": deploymentDetailsMap,
+		*/
+	})
+
+	// log.Debug("Test printf")
+	// log.Debug(tpl.String())
+
+	if err = templates.ExecuteTemplate(w, "login", map[string]interface{}{
+		"session_id":    sessionID(r),
+		"request_id":    r.Context().Value(ctxKeyRequestID{}),
+		"user_currency": currentCurrency(r),
+		"show_currency": false,
+		/*
+			"currencies":        currencies,
+			"order":             order.GetOrder(),
+			"total_paid":        &totalPaid,
+			"recommendations":   recommendations,
+			"platform_css":      plat.css,
+			"platform_name":     plat.provider,
+			"is_cymbal_brand":   isCymbalBrand,
+			"deploymentDetails": deploymentDetailsMap,
+		*/
+	}); err != nil {
+		log.Println(err)
+	}
+
+	/*
+		for _, c := range r.Cookies() {
+			c.Expires = time.Now().Add(-time.Hour * 24 * 365)
+			c.MaxAge = -1
+			http.SetCookie(w, c)
+		}
+		w.Header().Set("Location", "/")
+		w.WriteHeader(http.StatusFound)
+	*/
 }
 
 func (fe *frontendServer) logoutHandler(w http.ResponseWriter, r *http.Request) {
