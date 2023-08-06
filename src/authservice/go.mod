@@ -7,6 +7,7 @@ require (
 	cloud.google.com/go/profiler v0.3.1
 	github.com/dghubble/gologin/v2 v2.4.0
 	github.com/dghubble/sessions v0.4.0
+	github.com/go-sql-driver/mysql v1.7.1
 	github.com/golang/protobuf v1.5.3
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0

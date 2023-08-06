@@ -17,11 +17,15 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/md5"
+	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"html/template"
 	"io"
 	"math/rand"
 	"net/http"
+	"net/mail"
 	"os"
 	"strconv"
 	"strings"
@@ -33,6 +37,8 @@ import (
 
 	pb "github.com/GoogleCloudPlatform/microservices-demo/src/authservice/genproto"
 	"github.com/GoogleCloudPlatform/microservices-demo/src/authservice/money"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type platformDetails struct {
@@ -450,6 +456,176 @@ func (fe *frontendServer) logoutHandler(w http.ResponseWriter, r *http.Request) 
 	}
 	w.Header().Set("Location", "/")
 	w.WriteHeader(http.StatusFound)
+}
+
+func (fe *frontendServer) localLoginHandler(w http.ResponseWriter, r *http.Request) {
+	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
+
+	log.Debugf("Method: %v", r.Method)
+
+	// Loop over header names
+	for name1, values1 := range r.Header {
+		// Loop over all values for the name.
+		for _, value1 := range values1 {
+			log.Infof("Header Name: %+v, Value: %+v", name1, value1)
+		}
+	}
+
+	log.Debug("local login handler")
+	err := r.ParseForm()
+	if err != nil {
+		log.Infof("Unable to parse login form. Err: %s", err.Error())
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+
+	// Loop over header names
+	for name2, values2 := range r.PostForm {
+		// Loop over all values for the name.
+		for _, value2 := range values2 {
+			log.Infof("Form Name: %+v, Value: %+v", name2, value2)
+		}
+	}
+
+	email := r.FormValue("signinemail")
+	log.Infof("Email provided is: %v", email)
+	_, err = mail.ParseAddress(email)
+	if email == "" || err != nil {
+		log.Infof("Email field is empty or has an invalid email address string. Error: %s", err.Error())
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+
+	password := r.FormValue("signinpwd")
+	log.Infof("Password provided is: %v", password)
+	if password == "" {
+		log.Infof("Password field cannot be empty.")
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+
+	getEmailQuery := "SELECT * from userInfo where email = ?"
+	userRow := db.QueryRow(getEmailQuery, email)
+	var uInfo UserInfo
+	err = userRow.Scan(&uInfo.loginType, &uInfo.name, &uInfo.email, &uInfo.password)
+	if err == sql.ErrNoRows {
+		log.Infof("Email address is not found. Please register.", email)
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+
+	log.Infof("Data from userInfo table, %+v", uInfo)
+
+	err = bcrypt.CompareHashAndPassword([]byte(uInfo.password), []byte(password))
+	if err != nil {
+		log.Infof("Password does not match!")
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	} else {
+		log.Infof("User successfully logged in!")
+		// 2. Implement a success handler to issue some form of session
+		session := sessionStore.New(sessionName)
+		session.Set(sessionLoginType, "Local")
+		hash := md5.Sum([]byte("Local" + uInfo.name + uInfo.email))
+		session.Set(sessionUserKey, hex.EncodeToString(hash[:]))
+		session.Set(sessionUsername, uInfo.name)
+		session.Set(sessionUserEmail, uInfo.email)
+		log.Infof("session: %+v", session)
+		if err := session.Save(w); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		http.Redirect(w, r, "/", http.StatusFound)
+	}
+}
+
+func (fe *frontendServer) localRegisterHandler(w http.ResponseWriter, r *http.Request) {
+	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
+
+	log.Debugf("Method: %v", r.Method)
+
+	// Loop over header names
+	for name1, values1 := range r.Header {
+		// Loop over all values for the name.
+		for _, value1 := range values1 {
+			log.Infof("Header Name: %+v, Value: %+v", name1, value1)
+		}
+	}
+
+	log.Debug("local register handler")
+	err := r.ParseForm()
+	if err != nil {
+		log.Infof("Unable to parse login form. Err: %s", err.Error())
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+
+	// Loop over header names
+	for name2, values2 := range r.PostForm {
+		// Loop over all values for the name.
+		for _, value2 := range values2 {
+			log.Infof("Form Name: %+v, Value: %+v", name2, value2)
+		}
+	}
+
+	name := r.FormValue("signupname")
+	log.Infof("Name provided is: %v", name)
+	email := r.FormValue("signupemail")
+	log.Infof("Email provided is: %v", email)
+	_, err = mail.ParseAddress(email)
+	if email == "" || err != nil {
+		log.Infof("Email field is empty or has an invalid email address string. Error: %s", err.Error())
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+
+	password := r.FormValue("signuppwd")
+	log.Infof("Password provided is: %v", password)
+	if password == "" {
+		log.Infof("Password field cannot be empty.")
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+
+	getEmailQuery := "SELECT * from userInfo where email = ?"
+	userRow := db.QueryRow(getEmailQuery, email)
+	var uInfo UserInfo
+	err = userRow.Scan(&uInfo.loginType, &uInfo.name, &uInfo.email, &uInfo.password)
+	if err != sql.ErrNoRows {
+		log.Infof("Email address %s is already registered. Please sign in.", email)
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+
+	var pwdHash []byte
+	pwdHash, err = bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		log.Infof("bcrypt err: %s", err.Error())
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+
+	log.Infof("Inserting info into userInfo table, %+v, %+v, %+v", uInfo, pwdHash, string(pwdHash))
+	var insUserStmt *sql.Stmt
+	insUserStmt, err = db.Prepare("INSERT INTO userInfo (login_type, name, email, password) VALUES (?, ?, ?, ?);")
+	if err != nil {
+		log.Infof("Error preparing statement. Error: %s", err.Error())
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+	defer insUserStmt.Close()
+
+	result, err := insUserStmt.Exec("local", name, email, pwdHash)
+	rowsAff, _ := result.RowsAffected()
+	lastIns, _ := result.LastInsertId()
+	log.Infof("Rows Affected: %+v, Last Inserted Id: %+v, err: %s", rowsAff, lastIns, err)
+	if err != nil {
+		log.Infof("Error inserting new user")
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+
+	log.Infof("New user inserted successfully")
 }
 
 func (fe *frontendServer) setCurrencyHandler(w http.ResponseWriter, r *http.Request) {

@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"flag"
 	"fmt"
 	"io"
@@ -30,6 +31,7 @@ import (
 	"github.com/dghubble/gologin/v2/github"
 	"github.com/dghubble/gologin/v2/google"
 	"github.com/dghubble/sessions"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -60,6 +62,8 @@ const (
 	sessionUserKey   = "userID"
 	sessionUsername  = "userName"
 	sessionUserEmail = "userEmail"
+
+	userdbName = "usvcs_userdb"
 )
 
 var (
@@ -70,6 +74,7 @@ var (
 		"JPY": true,
 		"GBP": true,
 		"TRY": true}
+	db *sql.DB
 )
 
 // sessionStore encodes and decodes session data stored in signed cookies
@@ -81,6 +86,13 @@ type Config struct {
 	GoogleClientSecret string
 	GithubClientID     string
 	GithubClientSecret string
+}
+
+type UserInfo struct {
+	loginType string
+	name      string
+	email     string
+	password  string
 }
 
 type ctxKeySessionID struct{}
@@ -225,7 +237,37 @@ func handleAuth(f http.HandlerFunc, log logrus.FieldLogger) http.HandlerFunc {
 	}
 }
 
+func initializeUserDb(log logrus.FieldLogger) error {
+	err := db.Ping()
+	if err != nil {
+		log.Fatal("Ping to mysql server failed: %s", err.Error())
+		return err
+	}
+
+	result, err := db.Exec("CREATE DATABASE IF NOT EXISTS " + userdbName)
+	if err != nil {
+		log.Fatalf("Create database %s failed. Err: %s", userdbName, err.Error())
+	}
+	log.Infof("Result: %+v", result)
+
+	result, err = db.Exec("USE " + userdbName)
+	if err != nil {
+		log.Fatalf("USE database %s failed. Err: %s", userdbName, err.Error())
+	}
+	log.Infof("Result: %+v", result)
+
+	result, err = db.Exec("CREATE TABLE IF NOT EXISTS userInfo (login_type VARCHAR(32) NOT NULL, name VARCHAR(256), email VARCHAR(256) NOT NULL PRIMARY KEY, password VARCHAR(256) NOT NULL)")
+	if err != nil {
+		log.Fatalf("CREATE TABLE userInfo failed. Err: %s", err.Error())
+	}
+	log.Infof("Result: %+v", result)
+
+	return err
+}
+
 func main() {
+	var err error
+
 	ctx := context.Background()
 	log := logrus.New()
 	log.Level = logrus.DebugLevel
@@ -306,6 +348,15 @@ func main() {
 		log.Fatal("Missing Github Client Secret")
 	}
 
+	db, err = sql.Open("mysql", "root:test1234@tcp(mysql:3306)/")
+	if err != nil {
+		log.Fatal("Unable to fetch handle to mysql user database")
+	}
+
+	defer db.Close()
+
+	initializeUserDb(log)
+
 	mustMapEnv(&svc.productCatalogSvcAddr, "PRODUCT_CATALOG_SERVICE_ADDR")
 	mustMapEnv(&svc.currencySvcAddr, "CURRENCY_SERVICE_ADDR")
 	mustMapEnv(&svc.cartSvcAddr, "CART_SERVICE_ADDR")
@@ -327,6 +378,8 @@ func main() {
 	s := r.PathPrefix("/").Subrouter()
 	s.HandleFunc("/", svc.homeHandler).Methods(http.MethodGet, http.MethodHead)
 	r.HandleFunc("/login", svc.loginHandler).Methods(http.MethodGet)
+	r.HandleFunc("/local/register", svc.localRegisterHandler).Methods(http.MethodPost)
+	r.HandleFunc("/local/login", svc.localLoginHandler).Methods(http.MethodPost)
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
 	r.HandleFunc("/product/{id}", svc.homeHandler).Methods(http.MethodGet, http.MethodHead)
 	r.HandleFunc("/cart", svc.homeHandler).Methods(http.MethodGet, http.MethodHead)
