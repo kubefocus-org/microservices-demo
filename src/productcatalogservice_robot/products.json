@@ -1,0 +1,159 @@
+{
+    "products": [
+        {
+            "id": "Watson",
+            "name": "Watson",
+            "description": "Probably the smartest AI on the planet",
+            "picture": "/static/img/products/Watson.png",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 2001,
+                "nanos": 990000000
+            },
+            "categories": [
+                "Artificial Intelligence"
+            ]
+        },
+        {
+            "id": "Ewooid",
+            "name": "Ewooid",
+            "description": "Fully sentient assistant",
+            "picture": "/static/img/products/Ewooid.png",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 200,
+                "nanos": 990000000
+            },
+            "categories": [
+                "Artificial Intelligence"
+            ]
+        },
+        {
+            "id": "HPTD",
+            "name": "High-Powered Travel Droid",
+            "description": "Traveling to the far reaches of the Galaxy? You need this for protection. Comes in handy when you are lost in space",
+            "picture": "/static/img/products/HPTD.png",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 1200,
+                "nanos": 990000000
+            },
+            "categories": [
+                "Robot"
+            ]
+        },
+        {
+            "id": "UHJ",
+            "name": "Ultimate Harvesting Juggernaut",
+            "description": "Extraterrestrial vegetation harvester",
+            "picture": "/static/img/products/UHJ.png",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 5000,
+                "nanos": 990000000
+            },
+            "categories": [
+                "Robot"
+            ]
+        },
+        {
+            "id": "EPE",
+            "name": "Extreme Probe Emulator",
+            "description": "Versatile interface adapter for hacking into systems",
+            "picture": "/static/img/products/EPE.png",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 953,
+                "nanos": 990000000
+            },
+            "categories": [
+                "Robot"
+            ]
+        },
+        {
+            "id": "EMM",
+            "name": "Exceptional Medical Machine",
+            "description": "Fully automatic surgery droid with exceptional bedside manner",
+            "picture": "/static/img/products/EMM.png",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 1024,
+                "nanos": 990000000
+            },
+            "categories": [
+                "Robot"
+            ]
+        },
+        {
+            "id": "SHCE",
+            "name": "Strategic Human Control Emulator",
+            "description": "Diplomatic protocol assistant",
+            "picture": "/static/img/products/SHCE.png",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 300,
+                "nanos": 990000000
+            },
+            "categories": [
+                "Robot"
+            ]
+        },
+        {
+            "id": "RED",
+            "name": "Responsive Enforcer Droid",
+            "description": "Security detail, will gaurd anything",
+            "picture": "/static/img/products/RED.png",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 700,
+                "nanos": 990000000
+            },
+            "categories": [
+                "Robot"
+            ]
+        },
+        {
+            "id": "RMC",
+            "name": "Robotic Mining Cyborg",
+            "description": "Excellent tunneling capability to get those rare minerals",
+            "picture": "/static/img/products/RMC.png",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 42,
+                "nanos": 990000000
+            },
+            "categories": [
+                "Robot"
+            ]
+        },
+        {
+            "id": "STAN-1",
+            "name": "Stan",
+            "description": "Observability guru",
+            "picture": "/static/img/products/STAN-1.png",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 67,
+                "nanos": 990000000
+            },
+            "categories": [
+                "Robot",
+                "Artificial Intelligence"
+            ]
+        },
+        {
+            "id": "CNA",
+            "name": "Cybernated Neutralization Android",
+            "description": "Is your spaceship a bit whiffy? This little fellow will bring a breath of fresh air",
+            "picture": "/static/img/products/CNA.png",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 1000,
+                "nanos": 990000000
+            },
+            "categories": [
+                "Robot"
+            ]
+        }
+    ]
+}
