@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 	"time"
 
 	"cloud.google.com/go/profiler"
@@ -38,6 +39,7 @@ const (
 )
 
 var log *logrus.Logger
+var NumItemsForFreeShipping int
 
 func init() {
 	log = logrus.New()
@@ -68,6 +70,20 @@ func main() {
 		go initProfiling("shippingservice", "1.0.0")
 	} else {
 		log.Info("Profiling disabled.")
+	}
+
+	freeShipItemNum := os.Getenv("NUM_ITEMS_FOR_FREE_SHIPPING")
+	if freeShipItemNum == "" {
+		log.Info("No Free shipping")
+		NumItemsForFreeShipping = -1
+	} else {
+		var err error
+		log.Infof("Free shipping enabled. %s", freeShipItemNum)
+		NumItemsForFreeShipping, err = strconv.Atoi(freeShipItemNum)
+		if err != nil {
+			log.WithField("error", err).Info("Invalid number specified for number of free items for shipping")
+			NumItemsForFreeShipping = -1
+		}
 	}
 
 	port := defaultPort
