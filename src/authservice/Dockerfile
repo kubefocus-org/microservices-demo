@@ -20,8 +20,10 @@ RUN apt update
 RUN apt install -y vim curl iputils-ping
 WORKDIR /src
 COPY bin/authservice /src/server
-COPY ./templates ./templates
-COPY ./static ./static
+# COPY ./templates ./templates
+COPY ./login_templates ./login_templates
+# COPY ./static ./static
+COPY ./login_static ./login_static
 COPY ./docker-entrypoint.sh ./docker-entrypoint.sh
 
 # Definition of this variable is used by 'skaffold debug' to identify a golang binary.

@@ -52,7 +52,7 @@ var (
 			Funcs(template.FuncMap{
 			"renderMoney":        renderMoney,
 			"renderCurrencyLogo": renderCurrencyLogo,
-		}).ParseGlob("templates/*.html"))
+		}).ParseGlob("login_templates/*.html"))
 	plat platformDetails
 )
 
