@@ -380,7 +380,7 @@ func main() {
 	r.HandleFunc("/login", svc.loginHandler).Methods(http.MethodGet)
 	r.HandleFunc("/local/register", svc.localRegisterHandler).Methods(http.MethodPost)
 	r.HandleFunc("/local/login", svc.localLoginHandler).Methods(http.MethodPost)
-	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
+	r.PathPrefix("/static/").HandlerFunc(svc.homeHandler).Methods(http.MethodGet, http.MethodHead)
 	r.HandleFunc("/product/{id}", svc.homeHandler).Methods(http.MethodGet, http.MethodHead)
 	r.HandleFunc("/cart", svc.homeHandler).Methods(http.MethodGet, http.MethodHead)
 	r.HandleFunc("/cart", svc.homeHandler).Methods(http.MethodPost)
@@ -390,7 +390,6 @@ func main() {
 	r.HandleFunc("/cart/checkout", svc.homeHandler).Methods(http.MethodPost)
 	r.HandleFunc("/robots.txt", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "User-agent: *\nDisallow: /") })
 	r.HandleFunc("/_healthz", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "ok") })
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("/src/static"))))
 	// 1. Register Login and Callback handlers
 	googleOauth2Config := &oauth2.Config{
 		ClientID:     config.GoogleClientID,

@@ -61,6 +61,8 @@ var validEnvs = []string{"local", "gcp", "azure", "aws", "onprem", "alibaba"}
 func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
 
+	log.Infof("Processing request %v", r.URL)
+
 	if !isAuthenticated(r, log) {
 		log.Info("User is not authenticated. Redirecting to login page")
 		http.Redirect(w, r, "/login", http.StatusFound)
