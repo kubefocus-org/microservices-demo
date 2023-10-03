@@ -52,7 +52,7 @@ var (
 			Funcs(template.FuncMap{
 			"renderMoney":        renderMoney,
 			"renderCurrencyLogo": renderCurrencyLogo,
-		}).ParseGlob("templates/*.html"))
+		}).ParseGlob("login_templates/*.html"))
 	plat platformDetails
 )
 
@@ -628,6 +628,8 @@ func (fe *frontendServer) localRegisterHandler(w http.ResponseWriter, r *http.Re
 	}
 
 	log.Infof("New user inserted successfully")
+
+	http.Redirect(w, r, "/login", http.StatusFound)
 }
 
 func (fe *frontendServer) setCurrencyHandler(w http.ResponseWriter, r *http.Request) {
