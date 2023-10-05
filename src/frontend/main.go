@@ -192,7 +192,7 @@ func main() {
 	ctx := context.Background()
 	log := logrus.New()
 	log.SetReportCaller(true)
-	log.Level = logrus.DebugLevel
+	log.Level = logrus.InfoLevel
 	log.Formatter = &logrus.JSONFormatter{
 		FieldMap: logrus.FieldMap{
 			logrus.FieldKeyTime:  "timestamp",

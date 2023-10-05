@@ -65,11 +65,11 @@ func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 	for name, values := range r.Header {
 		// Loop over all values for the name.
 		for _, value := range values {
-			log.Infof("Name: %+v, Value: %+v", name, value)
+			log.Debugf("Name: %+v, Value: %+v", name, value)
 		}
 	}
 
-	log.WithField("currency", currentCurrency(r)).Info("home")
+	log.WithField("currency", currentCurrency(r)).Debug("home")
 	currencies, err := fe.getCurrencies(r.Context())
 	if err != nil {
 		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve currencies"), http.StatusInternalServerError)
@@ -104,7 +104,7 @@ func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 	var env = os.Getenv("ENV_PLATFORM")
 	// Only override from env variable if set + valid env
 	if env == "" || stringinSlice(validEnvs, env) == false {
-		fmt.Println("env platform is either empty or invalid")
+		log.Debug("env platform is either empty or invalid")
 		env = "local"
 	}
 	// Autodetect GCP
@@ -179,7 +179,7 @@ func (fe *frontendServer) productHandler(w http.ResponseWriter, r *http.Request)
 	for name, values := range r.Header {
 		// Loop over all values for the name.
 		for _, value := range values {
-			log.Infof("Name: %+v, Value: %+v", name, value)
+			log.Debugf("Name: %+v, Value: %+v", name, value)
 		}
 	}
 

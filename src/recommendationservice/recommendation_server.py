@@ -65,7 +65,7 @@ def initStackdriverProfiling():
 
 class RecommendationService(demo_pb2_grpc.RecommendationServiceServicer):
     def ListRecommendations(self, request, context):
-        logger.info("Hello I am listing recommendations")
+        logger.debug("Hello I am listing recommendations")
         max_responses = 5
         # fetch list of products from product catalog stub
         cat_response = product_catalog_stub.ListProducts(demo_pb2.Empty())
@@ -79,9 +79,9 @@ class RecommendationService(demo_pb2_grpc.RecommendationServiceServicer):
         prod_list = [filtered_products[i] for i in indices]
         # logger.info("Request headers={}".format(request.headers))
         logger.info("[Recv ListRecommendations] product_ids={}".format(prod_list))
-        logger.info("Not showing recommendations")
-        prod_list = []
-        logger.info("[Recv ListRecommendations] product_ids={}".format(prod_list))
+        # logger.debug("Not showing recommendations")
+        # prod_list = []
+        # logger.debug("[Recv ListRecommendations] product_ids={}".format(prod_list))
         # build and return response
         response = demo_pb2.ListRecommendationsResponse()
         response.product_ids.extend(prod_list)

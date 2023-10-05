@@ -189,36 +189,36 @@ func isAuthenticated(r *http.Request, log logrus.FieldLogger) bool {
 		return false
 	}
 
-	log.Infof("You are logged in %s!", session.Get(sessionUsername))
+	log.Debugf("You are logged in %s!", session.Get(sessionUsername))
 
 	tenantName := r.Header.Get("Tenantname")
-	log.Infof("tenantName is %v", tenantName)
+	log.Debugf("tenantName is %v", tenantName)
 	if tenantName != "" {
 		return true
 	}
 
 	r.Header.Set("Tenantname", "Default")
 	tenantName = r.Header.Get("Tenantname")
-	log.Infof("tenantName is %v", tenantName)
+	log.Debugf("tenantName is %v", tenantName)
 
 	if session.Get(sessionLoginType) == "Google" && strings.Contains(session.Get(sessionUsername), "Nithin") {
 		// This is for free shipping
-		log.Infof("Setting tenantName header for user Nithin to Nithin")
+		log.Debugf("Setting tenantName header for user Nithin to Nithin")
 		r.Header.Set("Tenantname", "Nithin")
 		tenantName = r.Header.Get("Tenantname")
 		log.Infof("tenantName is %v", tenantName)
 		return true
 	} else if session.Get(sessionLoginType) == "Google" && strings.Contains(session.Get(sessionUsername), "Novus") {
 		// This is for showing recommendations
-		log.Infof("Setting tenantName header for user Temp to Novus")
+		log.Debugf("Setting tenantName header for user Temp to Novus")
 		r.Header.Set("Tenantname", "Novus")
 		tenantName = r.Header.Get("Tenantname")
 		log.Infof("tenantName is %v", tenantName)
 		return true
 	} else {
-		log.Infof("Set tenantName header for all other users to Default")
+		log.Debugf("Set tenantName header for all other users to Default")
 		tenantName = r.Header.Get("Tenantname")
-		log.Infof("tenantName is %v", tenantName)
+		log.Debugf("tenantName is %v", tenantName)
 		return true
 	}
 
@@ -270,7 +270,7 @@ func main() {
 
 	ctx := context.Background()
 	log := logrus.New()
-	log.Level = logrus.DebugLevel
+	log.Level = logrus.InfoLevel
 	log.Formatter = &logrus.JSONFormatter{
 		FieldMap: logrus.FieldMap{
 			logrus.FieldKeyTime:  "timestamp",

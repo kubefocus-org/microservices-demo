@@ -107,18 +107,21 @@ func (fe *frontendServer) getShippingQuote(ctx context.Context, items []*pb.Cart
 		}
 	*/
 	log := ctx.Value(ctxKeyLog{}).(logrus.FieldLogger)
-	log.Infof("Received tenantName as %v", tenantName)
+	log.Debugf("Received tenantName as %v", tenantName)
 
 	md, ok := gm.FromOutgoingContext(ctx)
-	log.Infof("[GetRecommendations] metadata is %v; present %v", md, ok)
+	log.Debugf("[GetShippingQuote] metadata is %v; present %v", md, ok)
 	if ok {
 		value := md.Get("Tenantname")
-		log.Infof("[GetRecommendations] Tenantname value in metadata is %v; Tenantname is %s", value, value[0])
+		log.Debugf("[GetShippingQuote] Tenantname value in metadata is %v; Tenantname is %s", value, value[0])
 	}
 
-	// log.Infof("Inserted Tenantname grpc metadata")
-	quote, err = pb.NewShippingServiceClient(fe.shippingSvcConn).GetQuote(
-		gm.AppendToOutgoingContext(ctx, "Tenantname", tenantName),
+	client := pb.NewShippingServiceClient(fe.shippingSvcConn)
+
+	ctx = gm.AppendToOutgoingContext(ctx, "Tenantname", tenantName)
+
+	// log.Debugf("Inserted Tenantname grpc metadata")
+	quote, err = client.GetQuote(ctx,
 		&pb.GetQuoteRequest{
 			Address: nil,
 			Items:   items})
@@ -127,33 +130,33 @@ func (fe *frontendServer) getShippingQuote(ctx context.Context, items []*pb.Cart
 	}
 
 	md, ok = gm.FromOutgoingContext(ctx)
-	log.Infof("[GetRecommendations] metadata is %v; present %v", md, ok)
+	log.Debugf("[GetShippingQuote] metadata is %v; present %v", md, ok)
 	if ok {
 		value := md.Get("Tenantname")
-		log.Infof("[GetRecommendations] Tenantname value in metadata is %v; Tenantname is %s", value, value[0])
+		log.Debugf("[GetShippingQuote] Tenantname value in metadata is %v; Tenantname is %s", value, value[0])
 	}
 
-	// log.Infof("Inserted Tenantname grpc metadata")
+	// log.Debugf("Inserted Tenantname grpc metadata")
 	localized, err := fe.convertCurrency(ctx, quote.GetCostUsd(), currency)
 	return localized, errors.Wrap(err, "failed to convert currency for shipping cost")
 }
 
 func (fe *frontendServer) getRecommendations(ctx context.Context, userID string, productIDs []string, tenantName string) ([]*pb.Product, error) {
 	log := ctx.Value(ctxKeyLog{}).(logrus.FieldLogger)
-	log.Infof("Received tenantName as %v, userID %v, productIDs %v, addr %v, conn %v", tenantName, userID, productIDs, fe.recommendationSvcAddr, fe.recommendationSvcConn)
+	log.Debugf("Received tenantName as %v, userID %v, productIDs %v, addr %v, conn %v", tenantName, userID, productIDs, fe.recommendationSvcAddr, fe.recommendationSvcConn)
 
 	md, ok := gm.FromOutgoingContext(ctx)
-	log.Infof("[GetRecommendations] metadata is %v; present %v", md, ok)
+	log.Debugf("[GetRecommendations] metadata is %v; present %v", md, ok)
 	if ok {
 		value := md.Get("Tenantname")
-		log.Infof("[GetRecommendations] Tenantname value in metadata is %v; Tenantname is %s", value, value[0])
+		log.Debugf("[GetRecommendations] Tenantname value in metadata is %v; Tenantname is %s", value, value[0])
 	}
 
 	client := pb.NewRecommendationServiceClient(fe.recommendationSvcConn)
 
 	ctx = gm.AppendToOutgoingContext(ctx, "Tenantname", tenantName)
 
-	log.Infof("Got client for recommendation service %v", client)
+	log.Debugf("Got client for recommendation service %v", client)
 	resp, err := client.ListRecommendations(ctx,
 		&pb.ListRecommendationsRequest{UserId: userID, ProductIds: productIDs})
 	if err != nil {
@@ -161,13 +164,13 @@ func (fe *frontendServer) getRecommendations(ctx context.Context, userID string,
 	}
 
 	md, ok = gm.FromOutgoingContext(ctx)
-	log.Infof("[GetRecommendations] metadata is %v; present %v", md, ok)
+	log.Debugf("[GetRecommendations] metadata is %v; present %v", md, ok)
 	if ok {
 		value := md.Get("Tenantname")
-		log.Infof("[GetRecommendations] Tenantname value in metadata is %v; Tenantname is %s", value, value[0])
+		log.Debugf("[GetRecommendations] Tenantname value in metadata is %v; Tenantname is %s", value, value[0])
 	}
 
-	// log.Infof("Inserted Tenantname grpc metadata")
+	// log.Debugf("Inserted Tenantname grpc metadata")
 	out := make([]*pb.Product, len(resp.GetProductIds()))
 	for i, v := range resp.GetProductIds() {
 		p, err := fe.getProduct(ctx, v)
