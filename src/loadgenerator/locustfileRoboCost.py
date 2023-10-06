@@ -18,28 +18,32 @@ import random
 import threading
 import time
 import logging
-from locust import HttpUser, TaskSet, between
-import inspect
-__FRAME__ = inspect.currentframe()
+from locust import HttpUser, TaskSet, between, events
 import re
+import json
+import math
 
 logger = logging.getLogger(__name__)
 FORMAT = "[%(asctime)s %(filename)s->%(funcName)s():%(lineno)s]%(levelname)s: %(message)s"
 logging.basicConfig(format=FORMAT)
+productInfo = {}
+products = []
+price = []
 
-products = [
-    '0PUK6V6EV0',
-    '1YMWWN1N4O',
-    '2ZYFJ3GM2N',
-    '66VCHSJNUP',
-    '6E92ZMYYFZ',
-    '9SIQT8TOJO',
-    'L9ECAV7KIM',
-    'LS4PSXUNUM',
-    'OLJCESPC7Z']
+@events.init.add_listener
+def on_test_start(environment, **kwargs):
+    global productInfo
+    global products
+    global price
+    logger.info("Reading products file and initializing data")
+    with open("./robotshop_products.json") as f:
+        productInfo = json.load(f)
+        products = [d["id"] for d in productInfo["products"]]
+        price = [float(d["priceUsd"]["units"])+(float(d["priceUsd"]["nanos"])/1000000000.0) for d in productInfo["products"]]
+    logger.debug("%s, %s" % (str(products), str(price)))
 
 userNumLock = threading.Lock()
-userNum = 1
+userNum = 251
 
 def index(l):
     logger.debug(f"Entered index {l.myUserNum}")
@@ -106,6 +110,38 @@ def viewCart(l):
 
     logger.debug(f"Exiting viewCart {l.myUserNum}")
 
+def getProduct(l):
+    logger.debug(f"Entered getProduct {l.myUserNum}")
+    productNum = random.randint(0, (len(products)-1))
+    logger.debug(f"productNum {productNum}")
+    product = products[productNum]
+    response = l.client.get("/product/" + product,
+                 headers={'Tenantname':'Tenant'+l.myUserNum})
+    logger.debug("Usr%s: Got product with ID %s." % (l.myUserNum, product))
+    logger.debug("Usr%s: Output:\n%s" % (l.myUserNum, response.text))
+    productPrice = 0.0
+    for line in response.text.splitlines():
+        productPriceMatch = re.match("\<p class=\"product-price\"\>\$(?P<productPrice>[0-9]+(\.[0-9]+)?)\<", line.strip())
+        if productPriceMatch:
+            logger.debug("Product price line: %s" % line)
+            if productPriceMatch.group('productPrice'):
+                productPrice = float(productPriceMatch.group('productPrice'))
+                logger.debug("Product price is (%s)'%f'" % (productPriceMatch.group('productPrice'), productPrice))
+            break
+
+    actualPrice = price[productNum] + float(l.myUserNum)
+    if math.isclose(productPrice, actualPrice, rel_tol=0.01):
+        logger.info("Usr%s: Price of product %s matched: (%f:%f)" % (l.myUserNum,
+                                                                     product,
+                                                                     productPrice,
+                                                                     actualPrice))
+    else:
+        logger.error("Usr%s: Price of product %s did not match: (%f:%f)" % (l.myUserNum,
+                                                                            product,
+                                                                            productPrice,
+                                                                            actualPrice))
+    logger.debug(f"Exiting addToCart {l.myUserNum}")
+
 def addToCart(l):
     logger.debug(f"Entered addToCart {l.myUserNum}")
     product = random.choice(products)
@@ -138,7 +174,7 @@ def checkout(l):
     logger.debug(f"Exiting checkout {l.myUserNum}")
 
 class UserBehavior(TaskSet):
-    myUserNum = "000"
+    myUserNum = "251"
 
     def on_start(self):
         logger.debug(f"Entered on_start {self.myUserNum}")
@@ -148,8 +184,8 @@ class UserBehavior(TaskSet):
         userNum = userNum + 1
         userNumLock.release()
 
-        userName = "shipUsr" + self.myUserNum + "@appez.com"
-        userFullName = "Ship User " + self.myUserNum
+        userName = "roboCost" + self.myUserNum + "@appez.com"
+        userFullName = "Robo Cost " + self.myUserNum
         userPwd = userName
         self.client.post("/local/register",
                          # headers={"Content-Type":"application/x-www-form-urlencoded"},
@@ -174,8 +210,7 @@ class UserBehavior(TaskSet):
         checkout: 1}
     '''
     tasks = {
-    addToCart: 1,
-    viewCart: 1
+    getProduct: 1
     }
 
 class WebsiteUser(HttpUser):

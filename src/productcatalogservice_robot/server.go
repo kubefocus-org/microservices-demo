@@ -219,10 +219,12 @@ func readCatalogFile(catalog *pb.ListProductsResponse) error {
 		log.Warnf("failed to parse the catalog JSON: %v", err)
 		return err
 	}
+	log.Debugf("Products Before: %+v", catalog.Products)
 	log.Infof("Increasing the price of all products by %d", *extraCost)
 	for i := 0; i < len(catalog.Products); i++ {
 		catalog.Products[i].PriceUsd.Units = catalog.Products[i].PriceUsd.Units + *extraCost
 	}
+	log.Debugf("Products After: %+v", catalog.Products)
 	log.Info("successfully parsed product catalog json")
 	return nil
 }
