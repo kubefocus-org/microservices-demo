@@ -17,15 +17,11 @@ package main
 import (
 	"bytes"
 	"context"
-	"crypto/md5"
-	"database/sql"
-	"encoding/hex"
 	"fmt"
 	"html/template"
-	"io"
 	"math/rand"
+	"net"
 	"net/http"
-	"net/mail"
 	"os"
 	"strconv"
 	"strings"
@@ -35,10 +31,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
-	pb "github.com/GoogleCloudPlatform/microservices-demo/src/authservice/genproto"
-	"github.com/GoogleCloudPlatform/microservices-demo/src/authservice/money"
-
-	"golang.org/x/crypto/bcrypt"
+	pb "github.com/GoogleCloudPlatform/microservices-demo/src/frontend/genproto"
+	"github.com/GoogleCloudPlatform/microservices-demo/src/frontend/money"
 )
 
 type platformDetails struct {
@@ -52,7 +46,7 @@ var (
 			Funcs(template.FuncMap{
 			"renderMoney":        renderMoney,
 			"renderCurrencyLogo": renderCurrencyLogo,
-		}).ParseGlob("login_templates/*.html"))
+		}).ParseGlob("templates/*.html"))
 	plat platformDetails
 )
 
@@ -61,58 +55,91 @@ var validEnvs = []string{"local", "gcp", "azure", "aws", "onprem", "alibaba"}
 func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
 
-	log.Debugf("Processing request %v", r.URL)
-
 	if !isAuthenticated(r, log) {
 		log.Info("User is not authenticated. Redirecting to login page")
 		http.Redirect(w, r, "/login", http.StatusFound)
 		return
 	}
 
-	log.Debugf("Proxying request %v to frontend:80", r.URL)
-	// we need to buffer the body if we want to read it here and send it
-	// in the request.
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// you can reassign the body if you need to parse it as multipart
-	r.Body = io.NopCloser(bytes.NewReader(body))
-
-	// create a new url from the raw RequestURI sent by the client
-	url := fmt.Sprintf("http://frontend:80%s", r.RequestURI)
-
-	proxyReq, err := http.NewRequest(r.Method, url, bytes.NewReader(body))
-
-	// We may want to filter some headers, otherwise we could just use a shallow copy
-	// proxyReq.Header = req.Header
-	proxyReq.Header = make(http.Header)
-	for h, val := range r.Header {
-		proxyReq.Header[h] = val
-	}
-
-	httpClient := http.Client{}
-	resp, err := httpClient.Do(proxyReq)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadGateway)
-		return
-	}
-	defer resp.Body.Close()
-
-	// Step 4: copy payload to response writer
-	copyHeader(w.Header(), resp.Header)
-	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
-}
-
-// copyHeader and singleJoiningSlash are copy from "/net/http/httputil/reverseproxy.go"
-func copyHeader(dst, src http.Header) {
-	for k, vv := range src {
-		for _, v := range vv {
-			dst.Add(k, v)
+	// Loop over header names
+	for name, values := range r.Header {
+		// Loop over all values for the name.
+		for _, value := range values {
+			log.Debugf("Name: %+v, Value: %+v", name, value)
 		}
+	}
+
+	log.WithField("currency", currentCurrency(r)).Debug("home")
+	currencies, err := fe.getCurrencies(r.Context())
+	if err != nil {
+		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve currencies"), http.StatusInternalServerError)
+		return
+	}
+	products, err := fe.getProducts(r.Context())
+	if err != nil {
+		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve products"), http.StatusInternalServerError)
+		return
+	}
+	cart, err := fe.getCart(r.Context(), sessionID(r))
+	if err != nil {
+		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve cart"), http.StatusInternalServerError)
+		return
+	}
+
+	type productView struct {
+		Item  *pb.Product
+		Price *pb.Money
+	}
+	ps := make([]productView, len(products))
+	for i, p := range products {
+		price, err := fe.convertCurrency(r.Context(), p.GetPriceUsd(), currentCurrency(r))
+		if err != nil {
+			renderHTTPError(log, r, w, errors.Wrapf(err, "failed to do currency conversion for product %s", p.GetId()), http.StatusInternalServerError)
+			return
+		}
+		ps[i] = productView{p, price}
+	}
+
+	// Set ENV_PLATFORM (default to local if not set; use env var if set; otherwise detect GCP, which overrides env)_
+	var env = os.Getenv("ENV_PLATFORM")
+	// Only override from env variable if set + valid env
+	if env == "" || stringinSlice(validEnvs, env) == false {
+		log.Debug("env platform is either empty or invalid")
+		env = "local"
+	}
+	// Autodetect GCP
+	addrs, err := net.LookupHost("metadata.google.internal.")
+	if err == nil && len(addrs) >= 0 {
+		log.Debugf("Detected Google metadata server: %v, setting ENV_PLATFORM to GCP.", addrs)
+		env = "gcp"
+	}
+
+	session, err := sessionStore.Get(r, sessionName)
+	if err != nil {
+		log.Debugf("Unable to get session %s from session store", sessionName)
+	}
+
+	log.Debugf("ENV_PLATFORM is: %s", env)
+	plat = platformDetails{}
+	plat.setPlatformDetails(strings.ToLower(env))
+
+	if err := templates.ExecuteTemplate(w, "home", map[string]interface{}{
+		"session_id":        sessionID(r),
+		"request_id":        r.Context().Value(ctxKeyRequestID{}),
+		"user_currency":     currentCurrency(r),
+		"show_currency":     true,
+		"currencies":        currencies,
+		"products":          ps,
+		"cart_size":         cartSize(cart),
+		"banner_color":      os.Getenv("BANNER_COLOR"), // illustrates canary deployments
+		"ad":                fe.chooseAd(r.Context(), []string{}, log),
+		"platform_css":      plat.css,
+		"platform_name":     plat.provider,
+		"is_cymbal_brand":   isCymbalBrand,
+		"deploymentDetails": deploymentDetailsMap,
+		"sessionUsername":   session.Get(sessionUsername),
+	}); err != nil {
+		log.Error(err)
 	}
 }
 
@@ -147,6 +174,14 @@ func (fe *frontendServer) productHandler(w http.ResponseWriter, r *http.Request)
 	}
 	log.WithField("id", id).WithField("currency", currentCurrency(r)).
 		Debug("serving product page")
+
+	// Loop over header names
+	for name, values := range r.Header {
+		// Loop over all values for the name.
+		for _, value := range values {
+			log.Debugf("Name: %+v, Value: %+v", name, value)
+		}
+	}
 
 	p, err := fe.getProduct(r.Context(), id)
 	if err != nil {
@@ -458,179 +493,6 @@ func (fe *frontendServer) logoutHandler(w http.ResponseWriter, r *http.Request) 
 	}
 	w.Header().Set("Location", "/")
 	w.WriteHeader(http.StatusFound)
-}
-
-func (fe *frontendServer) localLoginHandler(w http.ResponseWriter, r *http.Request) {
-	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
-
-	log.Debugf("Method: %v", r.Method)
-
-	// Loop over header names
-	for name1, values1 := range r.Header {
-		// Loop over all values for the name.
-		for _, value1 := range values1 {
-			log.Debugf("Header Name: %+v, Value: %+v", name1, value1)
-		}
-	}
-
-	log.Debugf("local login handler")
-	err := r.ParseForm()
-	if err != nil {
-		log.Errorf("Unable to parse login form. Err: %s", err.Error())
-		http.Redirect(w, r, "/login", http.StatusFound)
-		return
-	}
-
-	// Loop over header names
-	for name2, values2 := range r.PostForm {
-		// Loop over all values for the name.
-		for _, value2 := range values2 {
-			log.Debugf("Form Name: %+v, Value: %+v", name2, value2)
-		}
-	}
-
-	email := r.FormValue("signinemail")
-	_, err = mail.ParseAddress(email)
-	if email == "" || err != nil {
-		log.Errorf("Email field is empty or has an invalid email address string. Error: %s", err.Error())
-		http.Redirect(w, r, "/login", http.StatusFound)
-		return
-	}
-
-	password := r.FormValue("signinpwd")
-	log.Infof("Email;Password provided is: %v;%v", email, password)
-	if password == "" {
-		log.Errorf("Password field cannot be empty.")
-		http.Redirect(w, r, "/login", http.StatusFound)
-		return
-	}
-
-	getEmailQuery := `SELECT * from userInfo where email=?`
-	userRow := db.QueryRow(getEmailQuery, email)
-	var uInfo UserInfo
-	err = userRow.Scan(&uInfo.loginType, &uInfo.name, &uInfo.email, &uInfo.password)
-	if err == sql.ErrNoRows {
-		log.Errorf("Email address %s is not found. Please register.", email)
-		http.Redirect(w, r, "/login", http.StatusFound)
-		return
-	} else if err != nil {
-		log.Errorf("Unable to get data from db. %+v(%s)", err, err.Error())
-	}
-
-	log.Debugf("Data from userInfo table, %+v", uInfo)
-
-	err = bcrypt.CompareHashAndPassword([]byte(uInfo.password), []byte(password))
-	if err != nil {
-		log.Infof("Password does not match!")
-		http.Redirect(w, r, "/login", http.StatusFound)
-		return
-	} else {
-		log.Infof("User successfully logged in!")
-		// 2. Implement a success handler to issue some form of session
-		session := sessionStore.New(sessionName)
-		session.Set(sessionLoginType, "Local")
-		hash := md5.Sum([]byte("Local" + uInfo.name + uInfo.email))
-		session.Set(sessionUserKey, hex.EncodeToString(hash[:]))
-		session.Set(sessionUsername, uInfo.name)
-		session.Set(sessionUserEmail, uInfo.email)
-		log.Debugf("session: %+v", session)
-		if err := session.Save(w); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		http.Redirect(w, r, "/", http.StatusFound)
-	}
-}
-
-func (fe *frontendServer) localRegisterHandler(w http.ResponseWriter, r *http.Request) {
-	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
-
-	log.Debugf("Method: %v", r.Method)
-
-	// Loop over header names
-	for name1, values1 := range r.Header {
-		// Loop over all values for the name.
-		for _, value1 := range values1 {
-			log.Infof("Header Name: %+v, Value: %+v", name1, value1)
-		}
-	}
-
-	log.Debug("local register handler")
-	err := r.ParseForm()
-	if err != nil {
-		log.Infof("Unable to parse login form. Err: %s", err.Error())
-		http.Redirect(w, r, "/login", http.StatusFound)
-		return
-	}
-
-	// Loop over header names
-	for name2, values2 := range r.PostForm {
-		// Loop over all values for the name.
-		for _, value2 := range values2 {
-			log.Infof("Form Name: %+v, Value: %+v", name2, value2)
-		}
-	}
-
-	name := r.FormValue("signupname")
-	email := r.FormValue("signupemail")
-	_, err = mail.ParseAddress(email)
-	if email == "" || err != nil {
-		log.Infof("Email field is empty or has an invalid email address string. Error: %s", err.Error())
-		http.Redirect(w, r, "/login", http.StatusFound)
-		return
-	}
-
-	password := r.FormValue("signuppwd")
-	log.Infof("Name;Email;Password provided is: %v;%v;%v", name, email, password)
-	if password == "" {
-		log.Infof("Password field cannot be empty.")
-		http.Redirect(w, r, "/login", http.StatusFound)
-		return
-	}
-
-	getEmailQuery := "SELECT * from userInfo where email = ?"
-	userRow := db.QueryRow(getEmailQuery, email)
-	var uInfo UserInfo
-	err = userRow.Scan(&uInfo.loginType, &uInfo.name, &uInfo.email, &uInfo.password)
-	if err != nil && err != sql.ErrNoRows {
-		log.Errorf("Unable to get data from db. %+v(%s)", err, err.Error())
-	} else if err != sql.ErrNoRows {
-		log.Infof("Email address %s is already registered. Please sign in.", email)
-		http.Redirect(w, r, "/login", http.StatusFound)
-		return
-	}
-
-	var pwdHash []byte
-	pwdHash, err = bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		log.Infof("bcrypt err: %s", err.Error())
-		http.Redirect(w, r, "/login", http.StatusFound)
-		return
-	}
-
-	log.Debugf("Inserting info into userInfo table, %+v, %+v, %+v", uInfo, pwdHash, string(pwdHash))
-	var insUserStmt *sql.Stmt
-	insUserStmt, err = db.Prepare("INSERT INTO userInfo (login_type, name, email, password) VALUES (?, ?, ?, ?);")
-	if err != nil {
-		log.Infof("Error preparing statement. Error: %s", err.Error())
-		http.Redirect(w, r, "/login", http.StatusFound)
-		return
-	}
-	defer insUserStmt.Close()
-
-	result, err := insUserStmt.Exec("local", name, email, pwdHash)
-	rowsAff, _ := result.RowsAffected()
-	lastIns, _ := result.LastInsertId()
-	log.Debugf("Rows Affected: %+v, Last Inserted Id: %+v, err: %s", rowsAff, lastIns, err)
-	if err != nil {
-		log.Error("Error inserting new user")
-		http.Redirect(w, r, "/login", http.StatusFound)
-		return
-	}
-
-	log.Infof("New user inserted successfully, %+v, %+v", uInfo, string(pwdHash))
-
-	http.Redirect(w, r, "/login", http.StatusFound)
 }
 
 func (fe *frontendServer) setCurrencyHandler(w http.ResponseWriter, r *http.Request) {

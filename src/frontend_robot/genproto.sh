@@ -1,4 +1,6 @@
-# Copyright 2020 Google LLC
+#!/bin/bash -eu
+#
+# Copyright 2018 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,23 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM python:3.11
+# [START gke_frontend_genproto]
 
-COPY requirements.txt .
+PATH=$PATH:$GOPATH/bin
+protodir=../../pb
 
-# RUN pip install --prefix="/install" -r requirements.txt
-RUN pip3 install -r requirements.txt
+protoc --go_out=plugins=grpc:genproto -I $protodir $protodir/demo.proto
 
-WORKDIR /loadgen
-
-# Add application code.
-COPY locustfile.py .
-COPY locustfileShipUsr.py .
-COPY locustfileRoboCost.py .
-COPY docker-entrypoint.sh ./docker-entrypoint.sh
-
-# enable gevent support in debugger
-ENV GEVENT_SUPPORT=True
-
-# ENTRYPOINT locust --host="http://${AUTHSERVICE_ADDR}" --headless -u "${USERS:-10}" 2>&1
-CMD [ "/loadgen/docker-entrypoint.sh" ]
+# [END gke_frontend_genproto]

@@ -70,6 +70,10 @@ func init() {
 	}
 	log.Out = os.Stdout
 	catalogMutex = &sync.Mutex{}
+
+	extraCost = flag.Int64("extracost", 0, "Additional cost to be added")
+	flag.Parse()
+
 	err := readCatalogFile(&cat)
 	if err != nil {
 		log.Warnf("could not parse product catalog")
@@ -92,9 +96,6 @@ func main() {
 	} else {
 		log.Info("Profiling disabled.")
 	}
-
-	extraCost = flag.Int64("extracost", 0, "Additional cost to be added")
-	flag.Parse()
 
 	// set injected latency
 	if s := os.Getenv("EXTRA_LATENCY"); s != "" {
@@ -218,6 +219,10 @@ func readCatalogFile(catalog *pb.ListProductsResponse) error {
 		log.Warnf("failed to parse the catalog JSON: %v", err)
 		return err
 	}
+	log.Infof("Increasing the price of all products by %d", *extraCost)
+	for i := 0; i < len(catalog.Products); i++ {
+		catalog.Products[i].PriceUsd.Units = catalog.Products[i].PriceUsd.Units + *extraCost
+	}
 	log.Info("successfully parsed product catalog json")
 	return nil
 }
@@ -227,10 +232,6 @@ func parseCatalog() []*pb.Product {
 		err := readCatalogFile(&cat)
 		if err != nil {
 			return []*pb.Product{}
-		}
-		log.Infof("Increasing the price of all products by %d", *extraCost)
-		for i := 0; i < len(cat.Products); i++ {
-			cat.Products[i].PriceUsd.Units = cat.Products[i].PriceUsd.Units + *extraCost
 		}
 	}
 	return cat.Products
