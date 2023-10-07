@@ -39,12 +39,12 @@ const (
 )
 
 var log *logrus.Logger
-var NumItemsForFreeShipping int
+var numItemsForFreeShipping int
 
 func init() {
 	log = logrus.New()
 	log.SetReportCaller(true)
-	log.Level = logrus.DebugLevel
+	log.Level = logrus.InfoLevel
 	log.Formatter = &logrus.JSONFormatter{
 		FieldMap: logrus.FieldMap{
 			logrus.FieldKeyTime:  "timestamp",
@@ -75,14 +75,14 @@ func main() {
 	freeShipItemNum := os.Getenv("NUM_ITEMS_FOR_FREE_SHIPPING")
 	if freeShipItemNum == "" {
 		log.Info("No Free shipping")
-		NumItemsForFreeShipping = -1
+		numItemsForFreeShipping = -1
 	} else {
 		var err error
 		log.Infof("Free shipping enabled. %s", freeShipItemNum)
-		NumItemsForFreeShipping, err = strconv.Atoi(freeShipItemNum)
+		numItemsForFreeShipping, err = strconv.Atoi(freeShipItemNum)
 		if err != nil {
 			log.WithField("error", err).Info("Invalid number specified for number of free items for shipping")
-			NumItemsForFreeShipping = -1
+			numItemsForFreeShipping = -1
 		}
 	}
 
@@ -135,13 +135,16 @@ func (s *server) GetQuote(ctx context.Context, in *pb.GetQuoteRequest) (*pb.GetQ
 	defer log.Info("[GetQuote] completed request")
 
 	items := in.GetItems()
-	numItems := len(items)
+	var numItems int = 0
+	for _, item := range items {
+		numItems = numItems + int(item.Quantity)
+	}
 
 	md, ok := gm.FromIncomingContext(ctx)
-	log.Infof("[GetQuote] metadata is %v; present %v", md, ok)
+	log.Debugf("[GetQuote] metadata is %v; present %v", md, ok)
 	if ok {
 		value := md.Get("Tenantname")
-		log.Infof("[GetQuote] Tenantname value in metadata is %v; Tenantname is %s", value, value[0])
+		log.Debugf("[GetQuote] Tenantname value in metadata is %v; Tenantname is %s", value, value[0])
 	}
 
 	// 1. Generate a quote based on the total number of items to be shipped.

@@ -189,36 +189,54 @@ func isAuthenticated(r *http.Request, log logrus.FieldLogger) bool {
 		return false
 	}
 
-	log.Infof("You are logged in %s!", session.Get(sessionUsername))
+	userName := session.Get(sessionUserEmail)
+	sessionType := session.Get(sessionLoginType)
+	log.Infof("You are logged in %s, %s!", sessionType, userName)
 
 	tenantName := r.Header.Get("Tenantname")
-	log.Infof("tenantName is %v", tenantName)
+	log.Debugf("tenantName is %v", tenantName)
 	if tenantName != "" {
 		return true
 	}
 
 	r.Header.Set("Tenantname", "Default")
 	tenantName = r.Header.Get("Tenantname")
-	log.Infof("tenantName is %v", tenantName)
+	log.Debugf("tenantName is %v", tenantName)
 
-	if session.Get(sessionLoginType) == "Google" && strings.Contains(session.Get(sessionUsername), "Nithin") {
+	if sessionType == "Google" && strings.Contains(userName, "Nithin") {
 		// This is for free shipping
-		log.Infof("Setting tenantName header for user Nithin to Nithin")
+		log.Debugf("Setting tenantName header for user Nithin to Nithin")
 		r.Header.Set("Tenantname", "Nithin")
 		tenantName = r.Header.Get("Tenantname")
-		log.Infof("tenantName is %v", tenantName)
+		log.Debugf("tenantName is %v", tenantName)
 		return true
-	} else if session.Get(sessionLoginType) == "Google" && strings.Contains(session.Get(sessionUsername), "Novus") {
+	} else if sessionType == "Google" && strings.Contains(userName, "Novus") {
 		// This is for showing recommendations
-		log.Infof("Setting tenantName header for user Temp to Novus")
+		log.Debugf("Setting tenantName header for user Temp to Novus")
 		r.Header.Set("Tenantname", "Novus")
+		tenantName = r.Header.Get("Tenantname")
+		log.Debugf("tenantName is %v", tenantName)
+		return true
+	} else if sessionType == "Local" && strings.HasPrefix(userName, "shipUsr") {
+		// This is for local free shipping
+		tenantName = "Tenant" + strings.TrimSuffix(strings.TrimPrefix(userName, "shipUsr"), "@appez.com")
+		log.Debugf("Setting tenantName header for local user %s to %s", userName, tenantName)
+		r.Header.Set("Tenantname", tenantName)
+		tenantName = r.Header.Get("Tenantname")
+		log.Debugf("tenantName is %v", tenantName)
+		return true
+	} else if sessionType == "Local" && strings.HasPrefix(userName, "roboCost") {
+		// This is for local free shipping
+		tenantName = "Tenant" + strings.TrimSuffix(strings.TrimPrefix(userName, "roboCost"), "@appez.com")
+		log.Infof("Setting tenantName header for local user %s to %s", userName, tenantName)
+		r.Header.Set("Tenantname", tenantName)
 		tenantName = r.Header.Get("Tenantname")
 		log.Infof("tenantName is %v", tenantName)
 		return true
 	} else {
-		log.Infof("Set tenantName header for all other users to Default")
+		log.Debugf("Set tenantName header for all other users to Default")
 		tenantName = r.Header.Get("Tenantname")
-		log.Infof("tenantName is %v", tenantName)
+		log.Debugf("tenantName is %v", tenantName)
 		return true
 	}
 
@@ -270,7 +288,7 @@ func main() {
 
 	ctx := context.Background()
 	log := logrus.New()
-	log.Level = logrus.DebugLevel
+	log.Level = logrus.InfoLevel
 	log.Formatter = &logrus.JSONFormatter{
 		FieldMap: logrus.FieldMap{
 			logrus.FieldKeyTime:  "timestamp",

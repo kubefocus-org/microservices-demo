@@ -12,26 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM python:3.11.1-slim@sha256:1591aa8c01b5b37ab31dbe5662c5bdcf40c2f1bce4ef1c1fd24802dae3d01052 as base
-
-FROM base as builder
+FROM python:3.11
 
 COPY requirements.txt .
 
-RUN pip install --prefix="/install" -r requirements.txt
-
-FROM base
+# RUN pip install --prefix="/install" -r requirements.txt
+RUN pip3 install -r requirements.txt
 
 WORKDIR /loadgen
 
-COPY --from=builder /install /usr/local
-
 # Add application code.
 COPY locustfile.py .
+COPY locustfileShipUsr.py .
+COPY locustfileRoboCost.py .
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 
 # enable gevent support in debugger
 ENV GEVENT_SUPPORT=True
 
 # ENTRYPOINT locust --host="http://${AUTHSERVICE_ADDR}" --headless -u "${USERS:-10}" 2>&1
-ENTRYPOINT [ "/loadgen/docker-entrypoint.sh" ]
+CMD [ "/loadgen/docker-entrypoint.sh" ]

@@ -61,7 +61,7 @@ var validEnvs = []string{"local", "gcp", "azure", "aws", "onprem", "alibaba"}
 func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
 
-	log.Infof("Processing request %v", r.URL)
+	log.Debugf("Processing request %v", r.URL)
 
 	if !isAuthenticated(r, log) {
 		log.Info("User is not authenticated. Redirecting to login page")
@@ -69,7 +69,7 @@ func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Infof("Proxying request %v to frontend:8080", r.URL)
+	log.Debugf("Proxying request %v to frontend:80", r.URL)
 	// we need to buffer the body if we want to read it here and send it
 	// in the request.
 	body, err := io.ReadAll(r.Body)
@@ -82,7 +82,7 @@ func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 	r.Body = io.NopCloser(bytes.NewReader(body))
 
 	// create a new url from the raw RequestURI sent by the client
-	url := fmt.Sprintf("http://frontend:8080%s", r.RequestURI)
+	url := fmt.Sprintf("http://frontend:80%s", r.RequestURI)
 
 	proxyReq, err := http.NewRequest(r.Method, url, bytes.NewReader(body))
 
@@ -469,14 +469,14 @@ func (fe *frontendServer) localLoginHandler(w http.ResponseWriter, r *http.Reque
 	for name1, values1 := range r.Header {
 		// Loop over all values for the name.
 		for _, value1 := range values1 {
-			log.Infof("Header Name: %+v, Value: %+v", name1, value1)
+			log.Debugf("Header Name: %+v, Value: %+v", name1, value1)
 		}
 	}
 
-	log.Debug("local login handler")
+	log.Debugf("local login handler")
 	err := r.ParseForm()
 	if err != nil {
-		log.Infof("Unable to parse login form. Err: %s", err.Error())
+		log.Errorf("Unable to parse login form. Err: %s", err.Error())
 		http.Redirect(w, r, "/login", http.StatusFound)
 		return
 	}
@@ -485,38 +485,39 @@ func (fe *frontendServer) localLoginHandler(w http.ResponseWriter, r *http.Reque
 	for name2, values2 := range r.PostForm {
 		// Loop over all values for the name.
 		for _, value2 := range values2 {
-			log.Infof("Form Name: %+v, Value: %+v", name2, value2)
+			log.Debugf("Form Name: %+v, Value: %+v", name2, value2)
 		}
 	}
 
 	email := r.FormValue("signinemail")
-	log.Infof("Email provided is: %v", email)
 	_, err = mail.ParseAddress(email)
 	if email == "" || err != nil {
-		log.Infof("Email field is empty or has an invalid email address string. Error: %s", err.Error())
+		log.Errorf("Email field is empty or has an invalid email address string. Error: %s", err.Error())
 		http.Redirect(w, r, "/login", http.StatusFound)
 		return
 	}
 
 	password := r.FormValue("signinpwd")
-	log.Infof("Password provided is: %v", password)
+	log.Infof("Email;Password provided is: %v;%v", email, password)
 	if password == "" {
-		log.Infof("Password field cannot be empty.")
+		log.Errorf("Password field cannot be empty.")
 		http.Redirect(w, r, "/login", http.StatusFound)
 		return
 	}
 
-	getEmailQuery := "SELECT * from userInfo where email = ?"
+	getEmailQuery := `SELECT * from userInfo where email=?`
 	userRow := db.QueryRow(getEmailQuery, email)
 	var uInfo UserInfo
 	err = userRow.Scan(&uInfo.loginType, &uInfo.name, &uInfo.email, &uInfo.password)
 	if err == sql.ErrNoRows {
-		log.Infof("Email address is not found. Please register.", email)
+		log.Errorf("Email address %s is not found. Please register.", email)
 		http.Redirect(w, r, "/login", http.StatusFound)
 		return
+	} else if err != nil {
+		log.Errorf("Unable to get data from db. %+v(%s)", err, err.Error())
 	}
 
-	log.Infof("Data from userInfo table, %+v", uInfo)
+	log.Debugf("Data from userInfo table, %+v", uInfo)
 
 	err = bcrypt.CompareHashAndPassword([]byte(uInfo.password), []byte(password))
 	if err != nil {
@@ -532,7 +533,7 @@ func (fe *frontendServer) localLoginHandler(w http.ResponseWriter, r *http.Reque
 		session.Set(sessionUserKey, hex.EncodeToString(hash[:]))
 		session.Set(sessionUsername, uInfo.name)
 		session.Set(sessionUserEmail, uInfo.email)
-		log.Infof("session: %+v", session)
+		log.Debugf("session: %+v", session)
 		if err := session.Save(w); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -571,9 +572,7 @@ func (fe *frontendServer) localRegisterHandler(w http.ResponseWriter, r *http.Re
 	}
 
 	name := r.FormValue("signupname")
-	log.Infof("Name provided is: %v", name)
 	email := r.FormValue("signupemail")
-	log.Infof("Email provided is: %v", email)
 	_, err = mail.ParseAddress(email)
 	if email == "" || err != nil {
 		log.Infof("Email field is empty or has an invalid email address string. Error: %s", err.Error())
@@ -582,7 +581,7 @@ func (fe *frontendServer) localRegisterHandler(w http.ResponseWriter, r *http.Re
 	}
 
 	password := r.FormValue("signuppwd")
-	log.Infof("Password provided is: %v", password)
+	log.Infof("Name;Email;Password provided is: %v;%v;%v", name, email, password)
 	if password == "" {
 		log.Infof("Password field cannot be empty.")
 		http.Redirect(w, r, "/login", http.StatusFound)
@@ -593,7 +592,9 @@ func (fe *frontendServer) localRegisterHandler(w http.ResponseWriter, r *http.Re
 	userRow := db.QueryRow(getEmailQuery, email)
 	var uInfo UserInfo
 	err = userRow.Scan(&uInfo.loginType, &uInfo.name, &uInfo.email, &uInfo.password)
-	if err != sql.ErrNoRows {
+	if err != nil && err != sql.ErrNoRows {
+		log.Errorf("Unable to get data from db. %+v(%s)", err, err.Error())
+	} else if err != sql.ErrNoRows {
 		log.Infof("Email address %s is already registered. Please sign in.", email)
 		http.Redirect(w, r, "/login", http.StatusFound)
 		return
@@ -607,7 +608,7 @@ func (fe *frontendServer) localRegisterHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	log.Infof("Inserting info into userInfo table, %+v, %+v, %+v", uInfo, pwdHash, string(pwdHash))
+	log.Debugf("Inserting info into userInfo table, %+v, %+v, %+v", uInfo, pwdHash, string(pwdHash))
 	var insUserStmt *sql.Stmt
 	insUserStmt, err = db.Prepare("INSERT INTO userInfo (login_type, name, email, password) VALUES (?, ?, ?, ?);")
 	if err != nil {
@@ -620,14 +621,14 @@ func (fe *frontendServer) localRegisterHandler(w http.ResponseWriter, r *http.Re
 	result, err := insUserStmt.Exec("local", name, email, pwdHash)
 	rowsAff, _ := result.RowsAffected()
 	lastIns, _ := result.LastInsertId()
-	log.Infof("Rows Affected: %+v, Last Inserted Id: %+v, err: %s", rowsAff, lastIns, err)
+	log.Debugf("Rows Affected: %+v, Last Inserted Id: %+v, err: %s", rowsAff, lastIns, err)
 	if err != nil {
-		log.Infof("Error inserting new user")
+		log.Error("Error inserting new user")
 		http.Redirect(w, r, "/login", http.StatusFound)
 		return
 	}
 
-	log.Infof("New user inserted successfully")
+	log.Infof("New user inserted successfully, %+v, %+v", uInfo, string(pwdHash))
 
 	http.Redirect(w, r, "/login", http.StatusFound)
 }

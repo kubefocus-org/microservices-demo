@@ -51,6 +51,7 @@ var (
 	catalogMutex *sync.Mutex
 	log          *logrus.Logger
 	extraLatency time.Duration
+	extraCost    *int64
 
 	port = "3550"
 
@@ -69,6 +70,10 @@ func init() {
 	}
 	log.Out = os.Stdout
 	catalogMutex = &sync.Mutex{}
+
+	extraCost = flag.Int64("extracost", 0, "Additional cost to be added")
+	flag.Parse()
+
 	err := readCatalogFile(&cat)
 	if err != nil {
 		log.Warnf("could not parse product catalog")
@@ -91,8 +96,6 @@ func main() {
 	} else {
 		log.Info("Profiling disabled.")
 	}
-
-	flag.Parse()
 
 	// set injected latency
 	if s := os.Getenv("EXTRA_LATENCY"); s != "" {
@@ -216,6 +219,12 @@ func readCatalogFile(catalog *pb.ListProductsResponse) error {
 		log.Warnf("failed to parse the catalog JSON: %v", err)
 		return err
 	}
+	log.Debugf("Products Before: %+v", catalog.Products)
+	log.Infof("Increasing the price of all products by %d", *extraCost)
+	for i := 0; i < len(catalog.Products); i++ {
+		catalog.Products[i].PriceUsd.Units = catalog.Products[i].PriceUsd.Units + *extraCost
+	}
+	log.Debugf("Products After: %+v", catalog.Products)
 	log.Info("successfully parsed product catalog json")
 	return nil
 }

@@ -33,9 +33,11 @@ func (q Quote) String() string {
 // CreateQuoteFromCount takes a number of items and returns a Price struct.
 func CreateQuoteFromCount(count int) Quote {
 	var quote float64
-	if NumItemsForFreeShipping == -1 || count < NumItemsForFreeShipping {
+	if numItemsForFreeShipping == -1 || count < numItemsForFreeShipping {
+		log.Debugf("Not providing free shipping: %d, %d", count, numItemsForFreeShipping)
 		quote = 8.99
 	} else {
+		log.Debugf("Free shipping provided: %d, %d", count, numItemsForFreeShipping)
 		quote = 0.00
 	}
 	return CreateQuoteFromFloat(quote)
