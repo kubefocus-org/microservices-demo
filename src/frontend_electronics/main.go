@@ -16,22 +16,18 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"flag"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
 	"cloud.google.com/go/profiler"
 	"github.com/dghubble/gologin/v2"
-	"github.com/dghubble/gologin/v2/github"
 	"github.com/dghubble/gologin/v2/google"
 	"github.com/dghubble/sessions"
-	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -42,7 +38,6 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"golang.org/x/oauth2"
-	githubOAuth2 "golang.org/x/oauth2/github"
 	googleOAuth2 "golang.org/x/oauth2/google"
 	"google.golang.org/grpc"
 )
@@ -56,14 +51,11 @@ const (
 	cookieSessionID = cookiePrefix + "session-id"
 	cookieCurrency  = cookiePrefix + "currency"
 
-	sessionSecret    = "example cookie signing secret"
 	sessionName      = "example-app"
-	sessionLoginType = "userLoginType"
+	sessionSecret    = "example cookie signing secret"
 	sessionUserKey   = "userID"
 	sessionUsername  = "userName"
 	sessionUserEmail = "userEmail"
-
-	userdbName = "usvcs_userdb"
 )
 
 var (
@@ -74,7 +66,6 @@ var (
 		"JPY": true,
 		"GBP": true,
 		"TRY": true}
-	db *sql.DB
 )
 
 // sessionStore encodes and decodes session data stored in signed cookies
@@ -82,17 +73,8 @@ var sessionStore = sessions.NewCookieStore[string](sessions.DebugCookieConfig, [
 
 // Config configures the main ServeMux.
 type Config struct {
-	GoogleClientID     string
-	GoogleClientSecret string
-	GithubClientID     string
-	GithubClientSecret string
-}
-
-type UserInfo struct {
-	loginType string
-	name      string
-	email     string
-	password  string
+	ClientID     string
+	ClientSecret string
 }
 
 type ctxKeySessionID struct{}
@@ -115,7 +97,6 @@ type frontendServer struct {
 
 	shippingSvcAddr string
 	shippingSvcConn *grpc.ClientConn
-	// shippingFreeSvcConn *grpc.ClientConn
 
 	adSvcAddr string
 	adSvcConn *grpc.ClientConn
@@ -125,52 +106,20 @@ type frontendServer struct {
 }
 
 // issueSession issues a cookie session after successful Google login
-func googleIssueSession(log logrus.FieldLogger) http.Handler {
+func issueSession(log logrus.FieldLogger) http.Handler {
 	fn := func(w http.ResponseWriter, req *http.Request) {
-		log.Infof("Hello I am entering googleIssueSession")
 		ctx := req.Context()
 		googleUser, err := google.UserFromContext(ctx)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		log.Infof("googleUser: %+v", googleUser)
 		// 2. Implement a success handler to issue some form of session
 		session := sessionStore.New(sessionName)
-		session.Set(sessionLoginType, "Google")
 		session.Set(sessionUserKey, googleUser.Id)
 		session.Set(sessionUsername, googleUser.Name)
 		session.Set(sessionUserEmail, googleUser.Email)
-		log.Infof("session: %+v", session)
-		if err := session.Save(w); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		http.Redirect(w, req, "/", http.StatusFound)
-	}
-	return http.HandlerFunc(fn)
-}
-
-// issueSession issues a cookie session after successful Google login
-func githubIssueSession(log logrus.FieldLogger) http.Handler {
-	fn := func(w http.ResponseWriter, req *http.Request) {
-		log.Infof("Hello I am entering githubIssueSession")
-		ctx := req.Context()
-		githubUser, err := github.UserFromContext(ctx)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		log.Infof("githubUser: %+v", githubUser)
-		log.Infof("githubID: %+v, %+v, %+v", githubUser.ID, *githubUser.ID, strconv.FormatInt(*githubUser.ID, 10))
-		log.Infof("githubName: %+v, %+v", githubUser.Name, *githubUser.Name)
-		log.Infof("githubEmail: %+v, %+v", githubUser.Email, *githubUser.Email)
-		// 2. Implement a success handler to issue some form of session
-		session := sessionStore.New(sessionName)
-		session.Set(sessionLoginType, "Github")
-		session.Set(sessionUserKey, strconv.FormatInt(*githubUser.ID, 10))
-		session.Set(sessionUsername, *githubUser.Name)
-		session.Set(sessionUserEmail, *githubUser.Email)
+		log.Infof("googleUser: %+v", googleUser)
 		log.Infof("session: %+v", session)
 		if err := session.Save(w); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -182,61 +131,45 @@ func githubIssueSession(log logrus.FieldLogger) http.Handler {
 }
 
 func isAuthenticated(r *http.Request, log logrus.FieldLogger) bool {
+	return true
+
 	session, err := sessionStore.Get(r, sessionName)
 	if err != nil {
 		// welcome with login button
 		log.Infof("You are not logged in!")
 		return false
 	}
-
-	userName := session.Get(sessionUserEmail)
-	sessionType := session.Get(sessionLoginType)
-	log.Infof("You are logged in %s, %s!", sessionType, userName)
+	// authenticated profile
+	log.Infof("You are logged in %s!", session.Get(sessionUsername))
 
 	tenantName := r.Header.Get("Tenantname")
-	log.Debugf("tenantName is %v", tenantName)
+	log.Infof("tenantName is %v", tenantName)
 	if tenantName != "" {
 		return true
 	}
 
 	r.Header.Set("Tenantname", "Default")
 	tenantName = r.Header.Get("Tenantname")
-	log.Debugf("tenantName is %v", tenantName)
+	log.Infof("tenantName is %v", tenantName)
 
-	if sessionType == "Google" && strings.Contains(userName, "nithin") {
+	if strings.Contains(session.Get(sessionUsername), "Nithin") {
 		// This is for free shipping
-		log.Debugf("Setting tenantName header for user Nithin to Nithin")
+		log.Infof("Setting tenantName header for user Nithin to Nithin")
 		r.Header.Set("Tenantname", "Nithin")
 		tenantName = r.Header.Get("Tenantname")
-		log.Debugf("tenantName is %v", tenantName)
+		log.Infof("tenantName is %v", tenantName)
 		return true
-	} else if sessionType == "Google" && strings.Contains(userName, "novus") {
+	} else if strings.Contains(session.Get(sessionUsername), "Temp") {
 		// This is for showing recommendations
-		log.Debugf("Setting tenantName header for user Temp to Novus")
+		log.Infof("Setting tenantName header for user Temp to Novus")
 		r.Header.Set("Tenantname", "Novus")
-		tenantName = r.Header.Get("Tenantname")
-		log.Debugf("tenantName is %v", tenantName)
-		return true
-	} else if sessionType == "Local" && strings.HasPrefix(userName, "shipUsr") {
-		// This is for local free shipping
-		tenantName = "Tenant" + strings.TrimSuffix(strings.TrimPrefix(userName, "shipUsr"), "@appez.com")
-		log.Debugf("Setting tenantName header for local user %s to %s", userName, tenantName)
-		r.Header.Set("Tenantname", tenantName)
-		tenantName = r.Header.Get("Tenantname")
-		log.Debugf("tenantName is %v", tenantName)
-		return true
-	} else if sessionType == "Local" && strings.HasPrefix(userName, "roboCost") {
-		// This is for local free shipping
-		tenantName = "Tenant" + strings.TrimSuffix(strings.TrimPrefix(userName, "roboCost"), "@appez.com")
-		log.Infof("Setting tenantName header for local user %s to %s", userName, tenantName)
-		r.Header.Set("Tenantname", tenantName)
 		tenantName = r.Header.Get("Tenantname")
 		log.Infof("tenantName is %v", tenantName)
 		return true
 	} else {
-		log.Debugf("Set tenantName header for all other users to Default")
+		log.Infof("Set tenantName header for all other users to Default")
 		tenantName = r.Header.Get("Tenantname")
-		log.Debugf("tenantName is %v", tenantName)
+		log.Infof("tenantName is %v", tenantName)
 		return true
 	}
 
@@ -255,40 +188,11 @@ func handleAuth(f http.HandlerFunc, log logrus.FieldLogger) http.HandlerFunc {
 	}
 }
 
-func initializeUserDb(log logrus.FieldLogger) error {
-	err := db.Ping()
-	if err != nil {
-		log.Fatal("Ping to mysql server failed: %s", err.Error())
-		return err
-	}
-
-	result, err := db.Exec("CREATE DATABASE IF NOT EXISTS " + userdbName)
-	if err != nil {
-		log.Fatalf("Create database %s failed. Err: %s", userdbName, err.Error())
-	}
-	log.Infof("Result: %+v", result)
-
-	result, err = db.Exec("USE " + userdbName)
-	if err != nil {
-		log.Fatalf("USE database %s failed. Err: %s", userdbName, err.Error())
-	}
-	log.Infof("Result: %+v", result)
-
-	result, err = db.Exec("CREATE TABLE IF NOT EXISTS userInfo (login_type VARCHAR(32) NOT NULL, name VARCHAR(256), email VARCHAR(256) NOT NULL PRIMARY KEY, password VARCHAR(256) NOT NULL)")
-	if err != nil {
-		log.Fatalf("CREATE TABLE userInfo failed. Err: %s", err.Error())
-	}
-	log.Infof("Result: %+v", result)
-
-	return err
-}
-
 func main() {
-	var err error
-
 	ctx := context.Background()
 	log := logrus.New()
-	log.Level = logrus.InfoLevel
+	log.SetReportCaller(true)
+	log.Level = logrus.DebugLevel
 	log.Formatter = &logrus.JSONFormatter{
 		FieldMap: logrus.FieldMap{
 			logrus.FieldKeyTime:  "timestamp",
@@ -327,53 +231,25 @@ func main() {
 
 	// read credentials from environment variables if available
 	config := &Config{
-		GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
-		GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
-		GithubClientID:     os.Getenv("GITHUB_CLIENT_ID"),
-		GithubClientSecret: os.Getenv("GITHUB_CLIENT_SECRET"),
+		ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
+		ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
 	}
 	// allow consumer credential flags to override config fields
-	googleClientID := flag.String("google-client-id", "", "Google Client ID")
-	googleClientSecret := flag.String("google-client-secret", "", "Google Client Secret")
-	githubClientID := flag.String("github-client-id", "", "Github Client ID")
-	githubClientSecret := flag.String("github-client-secret", "", "Github Client Secret")
+	clientID := flag.String("client-id", "", "Google Client ID")
+	clientSecret := flag.String("client-secret", "", "Google Client Secret")
 	flag.Parse()
-	if *googleClientID != "" {
-		config.GoogleClientID = *googleClientID
+	if *clientID != "" {
+		config.ClientID = *clientID
 	}
-	if *googleClientSecret != "" {
-		config.GoogleClientSecret = *googleClientSecret
+	if *clientSecret != "" {
+		config.ClientSecret = *clientSecret
 	}
-	if *githubClientID != "" {
-		config.GithubClientID = *githubClientID
-	}
-	if *githubClientSecret != "" {
-		config.GithubClientSecret = *githubClientSecret
-	}
-
-	log.Infof("Config: %+v", config)
-
-	if config.GoogleClientID == "" {
+	if config.ClientID == "" {
 		log.Fatal("Missing Google Client ID")
 	}
-	if config.GoogleClientSecret == "" {
+	if config.ClientSecret == "" {
 		log.Fatal("Missing Google Client Secret")
 	}
-	if config.GithubClientID == "" {
-		log.Fatal("Missing Github Client ID")
-	}
-	if config.GithubClientSecret == "" {
-		log.Fatal("Missing Github Client Secret")
-	}
-
-	db, err = sql.Open("mysql", "root:test1234@tcp(mysql:3306)/")
-	if err != nil {
-		log.Fatal("Unable to fetch handle to mysql user database")
-	}
-
-	defer db.Close()
-
-	initializeUserDb(log)
 
 	mustMapEnv(&svc.productCatalogSvcAddr, "PRODUCT_CATALOG_SERVICE_ADDR")
 	mustMapEnv(&svc.currencySvcAddr, "CURRENCY_SERVICE_ADDR")
@@ -388,54 +264,40 @@ func main() {
 	mustConnGRPC(ctx, &svc.cartSvcConn, svc.cartSvcAddr)
 	mustConnGRPC(ctx, &svc.recommendationSvcConn, svc.recommendationSvcAddr)
 	mustConnGRPC(ctx, &svc.shippingSvcConn, svc.shippingSvcAddr)
-	// mustConnGRPC(ctx, &svc.shippingFreeSvcConn, "shippingfreeservice:50051")
 	mustConnGRPC(ctx, &svc.checkoutSvcConn, svc.checkoutSvcAddr)
 	mustConnGRPC(ctx, &svc.adSvcConn, svc.adSvcAddr)
 
 	r := mux.NewRouter()
-	s := r.PathPrefix("/").Subrouter()
-	s.HandleFunc("/", svc.homeHandler).Methods(http.MethodGet, http.MethodHead)
+	r.HandleFunc("/", svc.homeHandler).Methods(http.MethodGet, http.MethodHead)
+	r.HandleFunc("/product/{id}", svc.productHandler).Methods(http.MethodGet, http.MethodHead)
+	r.HandleFunc("/cart", svc.viewCartHandler).Methods(http.MethodGet, http.MethodHead)
+	r.HandleFunc("/cart", svc.addToCartHandler).Methods(http.MethodPost)
+	r.HandleFunc("/cart/empty", svc.emptyCartHandler).Methods(http.MethodPost)
+	r.HandleFunc("/setCurrency", svc.setCurrencyHandler).Methods(http.MethodPost)
+	r.HandleFunc("/logout", svc.logoutHandler).Methods(http.MethodGet)
 	r.HandleFunc("/login", svc.loginHandler).Methods(http.MethodGet)
-	r.HandleFunc("/local/register", svc.localRegisterHandler).Methods(http.MethodPost)
-	r.HandleFunc("/local/login", svc.localLoginHandler).Methods(http.MethodPost)
-	r.PathPrefix("/login_static/").Handler(http.StripPrefix("/login_static/", http.FileServer(http.Dir("./login_static/"))))
-	r.PathPrefix("/static/").HandlerFunc(svc.homeHandler).Methods(http.MethodGet, http.MethodHead)
-	r.HandleFunc("/product/{id}", svc.homeHandler).Methods(http.MethodGet, http.MethodHead)
-	r.HandleFunc("/cart", svc.homeHandler).Methods(http.MethodGet, http.MethodHead)
-	r.HandleFunc("/cart", svc.homeHandler).Methods(http.MethodPost)
-	r.HandleFunc("/cart/empty", svc.homeHandler).Methods(http.MethodPost)
-	r.HandleFunc("/setCurrency", svc.homeHandler).Methods(http.MethodPost)
-	r.HandleFunc("/logout", svc.homeHandler).Methods(http.MethodGet)
-	r.HandleFunc("/cart/checkout", svc.homeHandler).Methods(http.MethodPost)
+	r.HandleFunc("/cart/checkout", svc.placeOrderHandler).Methods(http.MethodPost)
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
 	r.HandleFunc("/robots.txt", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "User-agent: *\nDisallow: /") })
 	r.HandleFunc("/_healthz", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "ok") })
-	// http.Handle("/login_static/", http.StripPrefix("/login_static/", http.FileServer(http.Dir("/src/login_static"))))
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("/src/static"))))
 	// 1. Register Login and Callback handlers
-	googleOauth2Config := &oauth2.Config{
-		ClientID:     config.GoogleClientID,
-		ClientSecret: config.GoogleClientSecret,
+	oauth2Config := &oauth2.Config{
+		ClientID:     config.ClientID,
+		ClientSecret: config.ClientSecret,
 		RedirectURL:  "http://multiusertest.novusbee.com:20080/google/callback",
 		Endpoint:     googleOAuth2.Endpoint,
 		Scopes:       []string{"profile", "email"},
 	}
-	githubOauth2Config := &oauth2.Config{
-		ClientID:     config.GithubClientID,
-		ClientSecret: config.GithubClientSecret,
-		RedirectURL:  "http://multiusertest.novusbee.com:20080/github/callback",
-		Endpoint:     githubOAuth2.Endpoint,
-		Scopes:       []string{"profile", "email"},
-	}
 	// state param cookies require HTTPS by default; disable for localhost development
 	stateConfig := gologin.DebugOnlyCookieConfig
-	r.Handle("/google/login", google.StateHandler(stateConfig, google.LoginHandler(googleOauth2Config, nil)))
-	r.Handle("/google/callback", google.StateHandler(stateConfig, google.CallbackHandler(googleOauth2Config, googleIssueSession(log), nil)))
-	r.Handle("/github/login", github.StateHandler(stateConfig, github.LoginHandler(githubOauth2Config, nil)))
-	r.Handle("/github/callback", github.StateHandler(stateConfig, github.CallbackHandler(githubOauth2Config, githubIssueSession(log), nil)))
+	r.Handle("/google/login", google.StateHandler(stateConfig, google.LoginHandler(oauth2Config, nil)))
+	r.Handle("/google/callback", google.StateHandler(stateConfig, google.CallbackHandler(oauth2Config, issueSession(log), nil)))
 
 	var handler http.Handler = r
-	handler = &logHandler{log: log, next: handler}        // add logging
-	handler = ensureSessionID(handler)                    // add session ID
-	handler = otelhttp.NewHandler(handler, "authservice") // add OTel tracing
+	handler = &logHandler{log: log, next: handler}     // add logging
+	handler = ensureSessionID(handler)                 // add session ID
+	handler = otelhttp.NewHandler(handler, "frontend") // add OTel tracing
 
 	log.Infof("starting server on " + addr + ":" + srvPort)
 	log.Fatal(http.ListenAndServe(addr+":"+srvPort, handler))

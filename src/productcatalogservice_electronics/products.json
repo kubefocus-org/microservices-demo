@@ -1,0 +1,112 @@
+{
+    "products": [
+        {
+            "id": "1YMWWN1N4O",
+            "name": "MacBook Pro",
+            "description": "Apple 2023 MacBook Pro Laptop M3 Pro chip with 11-core CPU, 14-core GPU: 14.2-inch Liquid Retina XDR Display, 18GB Unified Memory, 512GB SSD Storage. Works with iPhone/iPad; Space Black",
+            "picture": "/static/img/products/AppleMacBookPro_1799.00.jpg",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 1799,
+                "nanos": 0
+            },
+            "categories": ["laptop"]
+        },
+        {
+            "id": "2ZYFJ3GM2N",
+            "name": "Apple TV",
+            "description": "Apple 2022 Apple TV 4K Wi-Fi with 64GB Storage (3rd Generation)",
+            "picture": "/static/img/products/AppleTv_146.55.jpg",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 146,
+                "nanos": 550000000
+            },
+            "categories": ["television"]
+        },
+        {
+            "id": "9SIQT8TOJO",
+            "name": "MacBook Air",
+            "description": "Apple 2024 MacBook Air 15-inch Laptop with M3 chip: 15.3-inch Liquid Retina Display, 8GB Unified Memory, 256GB SSD Storage, Backlit Keyboard, 1080p FaceTime HD Camera, Touch ID; Midnight",
+            "picture": "/static/img/products/MacbookAir_1199.00.jpg",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 1199,
+                "nanos": 0
+            },
+            "categories": ["laptop"]
+        },
+        {
+            "id": "L9ECAV7KIM",
+            "name": "Magic Mouse",
+            "description": "Apple Magic Mouse: Wireless, Bluetooth, Rechargeable. Works with Mac or iPad; Multi-Touch Surface - White",
+            "picture": "/static/img/products/AppleMagicMouse_67.99.jpg",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 67,
+                "nanos": 990000000
+            },
+            "categories": ["acessories", "laptop"]
+        },
+        {
+            "id": "LS4PSXUNUM",
+            "name": "Mac Mini Desktop",
+            "description": "Apple 2023 Mac Mini Desktop Computer M2 chip with 8-core CPU and 10-core GPU, 8GB Unified Memory, 512GB SSD Storage, Gigabit Ethernet. Works with iPhone/iPad",
+            "picture": "/static/img/products/MacMiniDesktop_749.00.jpg",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 749,
+                "nanos": 0
+            },
+            "categories": ["laptop", "desktop"]
+        },
+        {
+            "id": "66VCHSJNUP",
+            "name": "Air Pods Pro",
+            "description": "Apple AirPods Pro (2nd Generation) Wireless Ear Buds with USB-C Charging, Up to 2X More Active Noise Cancelling Bluetooth Headphones, Transparency Mode, Adaptive Audio, Personalized Spatial Audio",
+            "picture": "/static/img/products/AppleAirpodsPro_189.00.jpg",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 189,
+                "nanos": 0
+            },
+            "categories": ["accessories"]
+        },
+        {
+            "id": "0PUK6V6EV0",
+            "name": "Apple Watch",
+            "description": "Apple Watch Ultra 2 [GPS + Cellular 49mm] Smartwatch with Rugged Titanium Case & Blue Alpine Loop Medium. Fitness Tracker, Precision GPS, Action Button, Extra-Long Battery Life, Carbon Neutral",
+            "picture": "/static/img/products/AppleWatch_799.00.jpg",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 799,
+                "nanos": 0
+            },
+            "categories": ["accessories"]
+        },
+        {
+            "id": "OLJCESPC7Z",
+            "name": "Air Pods Max",
+            "description": "Apple AirPods Max Wireless Over-Ear Headphones, Active Noise Cancelling, Transparency Mode, Personalized Spatial Audio, Dolby Atmos, Bluetooth Headphones for iPhone - Green",
+            "picture": "/static/img/products/AppleAirpodsMax_519.00.jpg",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 519,
+                "nanos": 0
+            },
+            "categories": ["accessories"]
+        },
+        {
+            "id": "6E92ZMYYFZ",
+            "name": "iPad Pro",
+            "description": "Apple iPad Pro 11-inch (4th Generation): with M2 chip, Liquid Retina Display, 128GB, Wi-Fi 6E, 12MP front/12MP and 10MP Back Cameras, Face ID, All-Day Battery Life - Space Gray",
+            "picture": "/static/img/products/iPadPro_794.00.jpg",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 794,
+                "nanos": 0
+            },
+            "categories": ["tablet"]
+        }
+    ]
+}
