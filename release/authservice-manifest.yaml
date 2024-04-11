@@ -22,7 +22,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: authservice
-  namespace: novusbee
+  namespace: onlineboutique
 spec:
   selector:
     matchLabels:
@@ -39,7 +39,7 @@ spec:
       - name: gitlab-pull-secret
       containers:
         - name: server
-          image: registry.gitlab.com/novusbee/microservices/authservice:ubuntuv1
+          image: registry.gitlab.com/novusbee/microservices/authservice:ubuntuv2
           imagePullPolicy: Always
           ports:
           - containerPort: 8080
@@ -90,7 +90,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: authservice
-  namespace: novusbee
+  namespace: onlineboutique
 spec:
   type: ClusterIP
   selector:

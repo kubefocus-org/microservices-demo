@@ -20,7 +20,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: novusbee
+  name: onlineboutique
   annotations:
     linkerd.io/inject: "enabled"
 ---
@@ -30,7 +30,7 @@ kind: Secret
 type: kubernetes.io/dockerconfigjson
 metadata:
   name: gitlab-pull-secret
-  namespace: novusbee
+  namespace: onlineboutique
 data:
   .dockerconfigjson: ewoJImF1dGhzIjogewoJCSJyZWdpc3RyeS5naXRsYWIuY29tIjogewoJCQkiYXV0aCI6ICJibWx1WVd0cllUcDJjVEoyZUhrMlZGQXhNMWxxZUdsVU5sUXpSUT09IiwKCQkJImVtYWlsIjogIm5pbmFra2FAbm92dXNiZWUuY29tIgoJCX0KCX0KfQ==
 ---
@@ -38,7 +38,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: emailservice
-  namespace: novusbee
+  namespace: onlineboutique
 spec:
   selector:
     matchLabels:
@@ -94,7 +94,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: emailservice
-  namespace: novusbee
+  namespace: onlineboutique
 spec:
   type: ClusterIP
   selector:
@@ -108,7 +108,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: checkoutservice
-  namespace: novusbee
+  namespace: onlineboutique
 spec:
   selector:
     matchLabels:
@@ -171,7 +171,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: checkoutservice
-  namespace: novusbee
+  namespace: onlineboutique
 spec:
   type: ClusterIP
   selector:
@@ -185,7 +185,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: recommendationservice
-  namespace: novusbee
+  namespace: onlineboutique
 spec:
   selector:
     matchLabels:
@@ -243,7 +243,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: recommendationservice
-  namespace: novusbee
+  namespace: onlineboutique
 spec:
   type: ClusterIP
   selector:
@@ -257,7 +257,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: frontend
-  namespace: novusbee
+  namespace: onlineboutique
 spec:
   selector:
     matchLabels:
@@ -325,7 +325,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: frontend
-  namespace: novusbee
+  namespace: onlineboutique
 spec:
   type: ClusterIP
   selector:
@@ -339,7 +339,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: paymentservice
-  namespace: novusbee
+  namespace: onlineboutique
 spec:
   selector:
     matchLabels:
@@ -393,7 +393,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: paymentservice
-  namespace: novusbee
+  namespace: onlineboutique
 spec:
   type: ClusterIP
   selector:
@@ -407,7 +407,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: productcatalogservice
-  namespace: novusbee
+  namespace: onlineboutique
 spec:
   selector:
     matchLabels:
@@ -461,7 +461,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: productcatalogservice
-  namespace: novusbee
+  namespace: onlineboutique
 spec:
   type: ClusterIP
   selector:
@@ -475,7 +475,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: cartservice
-  namespace: novusbee
+  namespace: onlineboutique
 spec:
   selector:
     matchLabels:
@@ -530,7 +530,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: cartservice
-  namespace: novusbee
+  namespace: onlineboutique
 spec:
   type: ClusterIP
   selector:
@@ -544,7 +544,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: loadgenerator
-  namespace: novusbee
+  namespace: onlineboutique
 spec:
   selector:
     matchLabels:
@@ -619,7 +619,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: currencyservice
-  namespace: novusbee
+  namespace: onlineboutique
 spec:
   selector:
     matchLabels:
@@ -674,7 +674,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: currencyservice
-  namespace: novusbee
+  namespace: onlineboutique
 spec:
   type: ClusterIP
   selector:
@@ -688,7 +688,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: shippingservice
-  namespace: novusbee
+  namespace: onlineboutique
 spec:
   selector:
     matchLabels:
@@ -742,7 +742,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: shippingservice
-  namespace: novusbee
+  namespace: onlineboutique
 spec:
   type: ClusterIP
   selector:
@@ -756,7 +756,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: redis-cart
-  namespace: novusbee
+  namespace: onlineboutique
 spec:
   selector:
     matchLabels:
@@ -811,7 +811,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: redis-cart
-  namespace: novusbee
+  namespace: onlineboutique
 spec:
   type: ClusterIP
   selector:
@@ -825,7 +825,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: adservice
-  namespace: novusbee
+  namespace: onlineboutique
 spec:
   selector:
     matchLabels:
@@ -881,7 +881,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: adservice
-  namespace: novusbee
+  namespace: onlineboutique
 spec:
   type: ClusterIP
   selector:
@@ -896,7 +896,7 @@ kind: Role
 metadata:
   creationTimestamp: null
   name: poddepl
-  namespace: novusbee
+  namespace: onlineboutique
 rules:
 - apiGroups:
   - ""

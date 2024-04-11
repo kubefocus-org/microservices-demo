@@ -203,14 +203,14 @@ func isAuthenticated(r *http.Request, log logrus.FieldLogger) bool {
 	tenantName = r.Header.Get("Tenantname")
 	log.Debugf("tenantName is %v", tenantName)
 
-	if sessionType == "Google" && strings.Contains(userName, "Nithin") {
+	if sessionType == "Google" && strings.Contains(userName, "nithin") {
 		// This is for free shipping
 		log.Debugf("Setting tenantName header for user Nithin to Nithin")
 		r.Header.Set("Tenantname", "Nithin")
 		tenantName = r.Header.Get("Tenantname")
 		log.Debugf("tenantName is %v", tenantName)
 		return true
-	} else if sessionType == "Google" && strings.Contains(userName, "Novus") {
+	} else if sessionType == "Google" && strings.Contains(userName, "novus") {
 		// This is for showing recommendations
 		log.Debugf("Setting tenantName header for user Temp to Novus")
 		r.Header.Set("Tenantname", "Novus")
