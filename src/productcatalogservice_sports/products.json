@@ -1,0 +1,112 @@
+{
+    "products": [
+        {
+            "id": "1YMWWN1N4O",
+            "name": "NBA Game Ball",
+            "description": "Wilson NBA Official Game Ball",
+            "picture": "/static/img/products/Ball1.png",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 249,
+                "nanos": 950000000
+            },
+            "categories": ["basketball"]
+        },
+        {
+            "id": "2ZYFJ3GM2N",
+            "name": "Mountain Bike",
+            "description": "Nishiki Women's Pueblo 1.1 26in Mountain Bike",
+            "picture": "/static/img/products/Bike1.png",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 249,
+                "nanos": 990000000
+            },
+            "categories": ["cycling"]
+        },
+        {
+            "id": "9SIQT8TOJO",
+            "name": "Racquet",
+            "description": "Head IG Challenge Speed Tennis Racquet",
+            "picture": "/static/img/products/Racquet1.png",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 103,
+                "nanos": 990000000
+            },
+            "categories": ["tennis"]
+        },
+        {
+            "id": "L9ECAV7KIM",
+            "name": "Helmet",
+            "description": "Gray Nicolls Atomic Cricket Helmet",
+            "picture": "/static/img/products/Helmet1.png",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 75,
+                "nanos": 990000000
+            },
+            "categories": ["cricket"]
+        },
+        {
+            "id": "LS4PSXUNUM",
+            "name": "Max Trainer",
+            "description": "Bowflex M9 Flex Trainer",
+            "picture": "/static/img/products/Trainer1.png",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 1999,
+                "nanos": 990000000
+            },
+            "categories": ["exercise", "gym"]
+        },
+        {
+            "id": "66VCHSJNUP",
+            "name": "Treadmill",
+            "description": "NordicTrack Commercial 2450 Treadmill (2023)",
+            "picture": "/static/img/products/Treadmill1.png",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 2499,
+                "nanos": 980000000
+            },
+            "categories": ["walking", "gym", "jogging"]
+        },
+        {
+            "id": "0PUK6V6EV0",
+            "name": "Weight Set",
+            "description": "Powertec Weight Stack Set",
+            "picture": "/static/img/products/Weights1.png",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 449,
+                "nanos": 990000000
+            },
+            "categories": ["gym", "exercise", "weight lifting"]
+        },
+        {
+            "id": "OLJCESPC7Z",
+            "name": "Whey Protein",
+            "description": "Optimum Nutrition 100% Whey Gold Standard - 5lbs.",
+            "picture": "/static/img/products/Nutrition1.png",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 67,
+                "nanos": 990000000
+            },
+            "categories": ["nutrition", "drink"]
+        },
+        {
+            "id": "6E92ZMYYFZ",
+            "name": "Camping Tent",
+            "description": "Core Equipment 4-person Straight Wall Cabin Tent",
+            "picture": "/static/img/products/Tent1.png",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 139,
+                "nanos": 990000000
+            },
+            "categories": ["camping"]
+        }
+    ]
+}
