@@ -368,8 +368,17 @@ func main() {
 
 	db, err = sql.Open("mysql", "root:test1234@tcp(mysql:3306)/")
 	if err != nil {
-		log.Fatal("Unable to fetch handle to mysql user database")
+		log.Info("Unable to fetch handle to mysql user database")
 	}
+
+	for err != nil {
+		db, err = sql.Open("mysql", "root:test1234@tcp(mysql:3306)/")
+		if err != nil {
+			log.Debug("Unable to fetch handle to mysql user database")
+		}
+	}
+
+	log.Info("Successfully fetched handle to mysql user database")
 
 	defer db.Close()
 
