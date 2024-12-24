@@ -4,9 +4,9 @@ metadata:
   name: mysql-pv-claim
   namespace: onlineboutique
 spec:
-  storageClassName: local-path
+  storageClassName: manual
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   resources:
     requests:
-      storage: 500Mi
+      storage: 2Gi
