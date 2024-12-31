@@ -101,6 +101,9 @@ func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
+	// Dummy sleep to mimic realistic API scenario
+	// time.Sleep(50 * time.Millisecond)
+
 	// Step 4: copy payload to response writer
 	copyHeader(w.Header(), resp.Header)
 	w.WriteHeader(resp.StatusCode)

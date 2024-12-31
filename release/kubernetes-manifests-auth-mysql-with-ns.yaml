@@ -17,6 +17,13 @@
 # ----------------------------------------------------------
 
 # [START gke_release_kubernetes_manifests_microservices_demo]
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: onlineboutique
+  annotations:
+    linkerd.io/inject: "enabled"
+---
 # A secret to pull container from gitlab registry
 apiVersion: v1
 kind: Secret
@@ -206,7 +213,7 @@ spec:
               - ALL
           privileged: false
           readOnlyRootFilesystem: true
-        image: registry.gitlab.com/novusbee/microservices/recommendationservice:norecos
+        image: gcr.io/google-samples/microservices-demo/recommendationservice:v0.6.0
         ports:
         - containerPort: 8080
         readinessProbe:
@@ -686,7 +693,6 @@ spec:
   selector:
     matchLabels:
       app: shippingservice
-  replicas: 2
   template:
     metadata:
       labels:
@@ -926,7 +932,7 @@ spec:
       - name: gitlab-pull-secret
       containers:
         - name: server
-          image: registry.gitlab.com/novusbee/microservices/authservice:ubuntuV3
+          image: registry.gitlab.com/novusbee/microservices/authservice:ubuntuv1
           imagePullPolicy: Always
           ports:
           - containerPort: 8080
@@ -995,6 +1001,19 @@ metadata:
 type: kubernetes.io/basic-auth
 stringData:
   password: test1234
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pv-claim
+  namespace: onlineboutique
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 2Gi
 ---      
 apiVersion: apps/v1
 kind: Deployment
@@ -1013,7 +1032,7 @@ spec:
         app: mysql
     spec:
       containers:
-      - image: mysql:8.3.0
+      - image: mysql:latest
         name: mysql
         env:
         - name: MYSQL_ROOT_PASSWORD
