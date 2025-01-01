@@ -423,14 +423,14 @@ func main() {
 	googleOauth2Config := &oauth2.Config{
 		ClientID:     config.GoogleClientID,
 		ClientSecret: config.GoogleClientSecret,
-		RedirectURL:  "http://multiusertest.novusbee.com:20080/google/callback",
+		RedirectURL:  "http://appez-multiusertest.rightelast.com:20080/google/callback",
 		Endpoint:     googleOAuth2.Endpoint,
 		Scopes:       []string{"profile", "email"},
 	}
 	githubOauth2Config := &oauth2.Config{
 		ClientID:     config.GithubClientID,
 		ClientSecret: config.GithubClientSecret,
-		RedirectURL:  "http://multiusertest.novusbee.com:20080/github/callback",
+		RedirectURL:  "http://appez-multiusertest.rightelast.com:20080/github/callback",
 		Endpoint:     githubOAuth2.Endpoint,
 		Scopes:       []string{"profile", "email"},
 	}
