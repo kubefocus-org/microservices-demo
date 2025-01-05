@@ -14,7 +14,7 @@ jobs:
 
     - name: Build deployments
       id: build
-      timeout-minutes: 20
+      timeout-minutes: 2
       run: |
         # __MAKE__CHANGES__FROM__HERE__
         cd src/shippingservice
