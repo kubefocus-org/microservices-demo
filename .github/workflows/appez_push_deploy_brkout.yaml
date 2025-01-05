@@ -17,9 +17,10 @@ jobs:
       timeout-minutes: 20
       run: |
         # __MAKE__CHANGES__FROM__HERE__
-        # place build commands here
-        # Build image and push to registry for container 'server' of deployment 'shippingservice'
-        # echo "IMAGE_shippingservice_server=<<shippingservice_server_image:tag>>" >> $GITHUB_OUTPUT
+        cd src/shippingservice
+        docker buildx build . -t registry.gitlab.com/novusbee/microservices/shippingservice:freeshipV3
+        docker push registry.gitlab.com/novusbee/microservices/shippingservice:freeshipV3
+        echo "IMAGE_shippingservice_server=registry.gitlab.com/novusbee/microservices/shippingservice:freeshipV3" >> $GITHUB_OUTPUT        
         # __MAKE__CHANGES__TO__HERE__
 
     - name: Create Breakout
@@ -88,5 +89,5 @@ jobs:
           scope: public
         status: {}
         EOF
-        #
-        # curl -X PUT http://appez-api.rightelast.com:20082/api/breakouts -H 'Content-Type: application/x-yaml' --data-binary @breakout.yaml
+        
+        curl -X PUT http://appez-api.rightelast.com:20082/api/breakouts -H 'Content-Type: application/x-yaml' --data-binary @breakout.yaml
