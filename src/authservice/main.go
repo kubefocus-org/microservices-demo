@@ -258,25 +258,25 @@ func handleAuth(f http.HandlerFunc, log logrus.FieldLogger) http.HandlerFunc {
 func initializeUserDb(log logrus.FieldLogger) error {
 	err := db.Ping()
 	if err != nil {
-		log.Fatal("Ping to mysql server failed: %s", err.Error())
+		log.Errorf("Ping to mysql server failed: %s", err.Error())
 		return err
 	}
 
 	result, err := db.Exec("CREATE DATABASE IF NOT EXISTS " + userdbName)
 	if err != nil {
-		log.Fatalf("Create database %s failed. Err: %s", userdbName, err.Error())
+		log.Errorf("Create database %s failed. Err: %s", userdbName, err.Error())
 	}
 	log.Infof("Result: %+v", result)
 
 	result, err = db.Exec("USE " + userdbName)
 	if err != nil {
-		log.Fatalf("USE database %s failed. Err: %s", userdbName, err.Error())
+		log.Errorf("USE database %s failed. Err: %s", userdbName, err.Error())
 	}
 	log.Infof("Result: %+v", result)
 
 	result, err = db.Exec("CREATE TABLE IF NOT EXISTS userInfo (login_type VARCHAR(32) NOT NULL, name VARCHAR(256), email VARCHAR(256) NOT NULL PRIMARY KEY, password VARCHAR(256) NOT NULL)")
 	if err != nil {
-		log.Fatalf("CREATE TABLE userInfo failed. Err: %s", err.Error())
+		log.Errorf("CREATE TABLE userInfo failed. Err: %s", err.Error())
 	}
 	log.Infof("Result: %+v", result)
 
@@ -369,12 +369,14 @@ func main() {
 	db, err = sql.Open("mysql", "root:test1234@tcp(mysql:3306)/")
 	if err != nil {
 		log.Info("Unable to fetch handle to mysql user database")
+		time.Sleep(time.Second)
 	}
 
 	for err != nil {
 		db, err = sql.Open("mysql", "root:test1234@tcp(mysql:3306)/")
 		if err != nil {
 			log.Debug("Unable to fetch handle to mysql user database")
+			time.Sleep(time.Second)
 		}
 	}
 
@@ -382,7 +384,20 @@ func main() {
 
 	defer db.Close()
 
-	initializeUserDb(log)
+	err = initializeUserDb(log)
+	if err != nil {
+		log.Info("Unable to initialize mysql user database")
+	}
+
+	for err != nil {
+		err = initializeUserDb(log)
+		if err != nil {
+			log.Debug("Unable to initialize mysql user database")
+			time.Sleep(time.Second)
+		}
+	}
+
+	log.Info("Successfully initialized mysql user database")
 
 	mustMapEnv(&svc.productCatalogSvcAddr, "PRODUCT_CATALOG_SERVICE_ADDR")
 	mustMapEnv(&svc.currencySvcAddr, "CURRENCY_SERVICE_ADDR")
