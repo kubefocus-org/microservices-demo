@@ -142,34 +142,34 @@ func isAuthenticated(r *http.Request, log logrus.FieldLogger) bool {
 	// authenticated profile
 	log.Infof("You are logged in %s!", session.Get(sessionUsername))
 
-	tenantName := r.Header.Get("Tenantname")
-	log.Infof("tenantName is %v", tenantName)
-	if tenantName != "" {
+	fwdHostName := r.Header.Get("X-forwarded-Host")
+	log.Infof("fwdHostName is %v", fwdHostName)
+	if fwdHostName != "" {
 		return true
 	}
 
-	r.Header.Set("Tenantname", "Default")
-	tenantName = r.Header.Get("Tenantname")
-	log.Infof("tenantName is %v", tenantName)
+	r.Header.Set("X-forwarded-Host", "Default")
+	fwdHostName = r.Header.Get("X-forwarded-Host")
+	log.Infof("fwdHostName is %v", fwdHostName)
 
 	if strings.Contains(session.Get(sessionUsername), "Nithin") {
 		// This is for free shipping
-		log.Infof("Setting tenantName header for user Nithin to Nithin")
-		r.Header.Set("Tenantname", "Nithin")
-		tenantName = r.Header.Get("Tenantname")
-		log.Infof("tenantName is %v", tenantName)
+		log.Infof("Setting fwdHostName header for user Nithin to Nithin")
+		r.Header.Set("X-forwarded-Host", "Nithin")
+		fwdHostName = r.Header.Get("X-forwarded-Host")
+		log.Infof("fwdHostName is %v", fwdHostName)
 		return true
 	} else if strings.Contains(session.Get(sessionUsername), "Temp") {
 		// This is for showing recommendations
-		log.Infof("Setting tenantName header for user Temp to Novus")
-		r.Header.Set("Tenantname", "Novus")
-		tenantName = r.Header.Get("Tenantname")
-		log.Infof("tenantName is %v", tenantName)
+		log.Infof("Setting fwdHostName header for user Temp to Novus")
+		r.Header.Set("X-forwarded-Host", "Novus")
+		fwdHostName = r.Header.Get("X-forwarded-Host")
+		log.Infof("fwdHostName is %v", fwdHostName)
 		return true
 	} else {
-		log.Infof("Set tenantName header for all other users to Default")
-		tenantName = r.Header.Get("Tenantname")
-		log.Infof("tenantName is %v", tenantName)
+		log.Infof("Set fwdHostName header for all other users to Default")
+		fwdHostName = r.Header.Get("X-forwarded-Host")
+		log.Infof("fwdHostName is %v", fwdHostName)
 		return true
 	}
 
@@ -192,7 +192,7 @@ func main() {
 	ctx := context.Background()
 	log := logrus.New()
 	log.SetReportCaller(true)
-	log.Level = logrus.InfoLevel
+	log.Level = logrus.DebugLevel
 	log.Formatter = &logrus.JSONFormatter{
 		FieldMap: logrus.FieldMap{
 			logrus.FieldKeyTime:  "timestamp",

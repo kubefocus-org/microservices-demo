@@ -86,7 +86,7 @@ func (fe *frontendServer) convertCurrency(ctx context.Context, money *pb.Money, 
 			ToCode: currency})
 }
 
-func (fe *frontendServer) getShippingQuote(ctx context.Context, items []*pb.CartItem, currency string, tenantName string) (*pb.Money, error) {
+func (fe *frontendServer) getShippingQuote(ctx context.Context, items []*pb.CartItem, currency string, fwdHostName string) (*pb.Money, error) {
 	var quote *pb.GetQuoteResponse
 	var err error
 	log := ctx.Value(ctxKeyLog{}).(logrus.FieldLogger)
@@ -107,9 +107,9 @@ func (fe *frontendServer) getShippingQuote(ctx context.Context, items []*pb.Cart
 					Items:   items})
 		}
 	*/
-	log.Infof("Received tenantName as %v", tenantName)
+	log.Infof("Received fwdHostName as %v", fwdHostName)
 	quote, err = pb.NewShippingServiceClient(fe.shippingSvcConn).GetQuote(
-		gm.AppendToOutgoingContext(ctx, "Tenantname", tenantName),
+		gm.AppendToOutgoingContext(ctx, "X-forwarded-Host", fwdHostName),
 		&pb.GetQuoteRequest{
 			Address: nil,
 			Items:   items})
@@ -120,9 +120,9 @@ func (fe *frontendServer) getShippingQuote(ctx context.Context, items []*pb.Cart
 	return localized, errors.Wrap(err, "failed to convert currency for shipping cost")
 }
 
-func (fe *frontendServer) getRecommendations(ctx context.Context, userID string, productIDs []string, tenantName string) ([]*pb.Product, error) {
+func (fe *frontendServer) getRecommendations(ctx context.Context, userID string, productIDs []string, fwdHostName string) ([]*pb.Product, error) {
 	resp, err := pb.NewRecommendationServiceClient(fe.recommendationSvcConn).ListRecommendations(
-		gm.AppendToOutgoingContext(ctx, "Tenantname", tenantName),
+		gm.AppendToOutgoingContext(ctx, "X-forwarded-Host", fwdHostName),
 		&pb.ListRecommendationsRequest{UserId: userID, ProductIds: productIDs})
 	if err != nil {
 		return nil, err
