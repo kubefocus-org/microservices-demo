@@ -79,7 +79,7 @@ func (lh *logHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	ctx = context.WithValue(ctx, ctxKeyLog{}, log)
-	ctx = gm.AppendToOutgoingContext(ctx, "Tenantname", r.Header.Get("Tenantname"))
+	ctx = gm.AppendToOutgoingContext(ctx, "X-forwarded-Host", r.Header.Get("X-forwarded-Host"))
 	r = r.WithContext(ctx)
 	lh.next.ServeHTTP(rr, r)
 }

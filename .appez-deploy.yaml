@@ -213,7 +213,7 @@ spec:
               - ALL
           privileged: false
           readOnlyRootFilesystem: true
-        image: gcr.io/google-samples/microservices-demo/recommendationservice:v0.6.0
+        image: registry.gitlab.com/novusbee/microservices/recommendationservice:norecos
         ports:
         - containerPort: 8080
         readinessProbe:

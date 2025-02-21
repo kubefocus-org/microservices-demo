@@ -44,7 +44,7 @@ var numItemsForFreeShipping int
 func init() {
 	log = logrus.New()
 	log.SetReportCaller(true)
-	log.Level = logrus.InfoLevel
+	log.Level = logrus.DebugLevel
 	log.Formatter = &logrus.JSONFormatter{
 		FieldMap: logrus.FieldMap{
 			logrus.FieldKeyTime:  "timestamp",
@@ -143,8 +143,8 @@ func (s *server) GetQuote(ctx context.Context, in *pb.GetQuoteRequest) (*pb.GetQ
 	md, ok := gm.FromIncomingContext(ctx)
 	log.Debugf("[GetQuote] metadata is %v; present %v", md, ok)
 	if ok {
-		value := md.Get("Tenantname")
-		log.Debugf("[GetQuote] Tenantname value in metadata is %v; Tenantname is %s", value, value[0])
+		value := md.Get("X-forwarded-Host")
+		log.Debugf("[GetQuote] X-forwarded-Host value in metadata is %v; X-forwarded-Host is %s", value, value[0])
 	}
 
 	// 1. Generate a quote based on the total number of items to be shipped.
