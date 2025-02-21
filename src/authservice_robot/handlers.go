@@ -170,7 +170,7 @@ func (fe *frontendServer) productHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	// ignores the error retrieving recommendations since it is not critical
-	recommendations, err := fe.getRecommendations(r.Context(), sessionID(r), []string{id}, r.Header.Get("Tenantname"))
+	recommendations, err := fe.getRecommendations(r.Context(), sessionID(r), []string{id}, r.Header.Get("X-forwarded-Host"))
 	if err != nil {
 		log.WithField("error", err).Warn("failed to get product recommendations")
 	}
@@ -257,12 +257,12 @@ func (fe *frontendServer) viewCartHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	// ignores the error retrieving recommendations since it is not critical
-	recommendations, err := fe.getRecommendations(r.Context(), sessionID(r), cartIDs(cart), r.Header.Get("Tenantname"))
+	recommendations, err := fe.getRecommendations(r.Context(), sessionID(r), cartIDs(cart), r.Header.Get("X-forwarded-Host"))
 	if err != nil {
 		log.WithField("error", err).Warn("failed to get product recommendations")
 	}
 
-	shippingCost, err := fe.getShippingQuote(r.Context(), cart, currentCurrency(r), r.Header.Get("Tenantname"))
+	shippingCost, err := fe.getShippingQuote(r.Context(), cart, currentCurrency(r), r.Header.Get("X-forwarded-Host"))
 	if err != nil {
 		renderHTTPError(log, r, w, errors.Wrap(err, "failed to get shipping quote"), http.StatusInternalServerError)
 		return
@@ -359,7 +359,7 @@ func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Reque
 	log.WithField("order", order.GetOrder().GetOrderId()).Info("order placed")
 
 	order.GetOrder().GetItems()
-	recommendations, _ := fe.getRecommendations(r.Context(), sessionID(r), nil, r.Header.Get("Tenantname"))
+	recommendations, _ := fe.getRecommendations(r.Context(), sessionID(r), nil, r.Header.Get("X-forwarded-Host"))
 
 	totalPaid := *order.GetOrder().GetShippingCost()
 	for _, v := range order.GetOrder().GetItems() {

@@ -86,24 +86,24 @@ func (fe *frontendServer) convertCurrency(ctx context.Context, money *pb.Money, 
 			ToCode: currency})
 }
 
-func (fe *frontendServer) getShippingQuote(ctx context.Context, items []*pb.CartItem, currency string, tenantName string) (*pb.Money, error) {
+func (fe *frontendServer) getShippingQuote(ctx context.Context, items []*pb.CartItem, currency string, fwdHostName string) (*pb.Money, error) {
 	var quote *pb.GetQuoteResponse
 	var err error
 	log := ctx.Value(ctxKeyLog{}).(logrus.FieldLogger)
-	log.Debugf("Received tenantName as %v", tenantName)
+	log.Debugf("Received fwdHostName as %v", fwdHostName)
 
 	md, ok := gm.FromOutgoingContext(ctx)
 	log.Debugf("[GetShippingQuote] metadata is %v; present %v", md, ok)
 	if ok {
-		value := md.Get("Tenantname")
-		log.Debugf("[GetShippingQuote] Tenantname value in metadata is %v; Tenantname is %s", value, value[0])
+		value := md.Get("X-forwarded-Host")
+		log.Debugf("[GetShippingQuote] X-forwarded-Host value in metadata is %v; X-forwarded-Host is %s", value, value[0])
 	}
 
 	client := pb.NewShippingServiceClient(fe.shippingSvcConn)
 
-	ctx = gm.AppendToOutgoingContext(ctx, "Tenantname", tenantName)
+	ctx = gm.AppendToOutgoingContext(ctx, "X-forwarded-Host", fwdHostName)
 
-	// log.Debugf("Inserted Tenantname grpc metadata")
+	// log.Debugf("Inserted X-forwarded-Host grpc metadata")
 	quote, err = client.GetQuote(ctx,
 		&pb.GetQuoteRequest{
 			Address: nil,
@@ -115,29 +115,29 @@ func (fe *frontendServer) getShippingQuote(ctx context.Context, items []*pb.Cart
 	md, ok = gm.FromOutgoingContext(ctx)
 	log.Debugf("[GetShippingQuote] metadata is %v; present %v", md, ok)
 	if ok {
-		value := md.Get("Tenantname")
-		log.Debugf("[GetShippingQuote] Tenantname value in metadata is %v; Tenantname is %s", value, value[0])
+		value := md.Get("X-forwarded-Host")
+		log.Debugf("[GetShippingQuote] X-forwarded-Host value in metadata is %v; X-forwarded-Host is %s", value, value[0])
 	}
 
-	// log.Debugf("Inserted Tenantname grpc metadata")
+	// log.Debugf("Inserted X-forwarded-Host grpc metadata")
 	localized, err := fe.convertCurrency(ctx, quote.GetCostUsd(), currency)
 	return localized, errors.Wrap(err, "failed to convert currency for shipping cost")
 }
 
-func (fe *frontendServer) getRecommendations(ctx context.Context, userID string, productIDs []string, tenantName string) ([]*pb.Product, error) {
+func (fe *frontendServer) getRecommendations(ctx context.Context, userID string, productIDs []string, fwdHostName string) ([]*pb.Product, error) {
 	log := ctx.Value(ctxKeyLog{}).(logrus.FieldLogger)
-	log.Debugf("Received tenantName as %v, userID %v, productIDs %v, addr %v, conn %v", tenantName, userID, productIDs, fe.recommendationSvcAddr, fe.recommendationSvcConn)
+	log.Debugf("Received fwdHostName as %v, userID %v, productIDs %v, addr %v, conn %v", fwdHostName, userID, productIDs, fe.recommendationSvcAddr, fe.recommendationSvcConn)
 
 	md, ok := gm.FromOutgoingContext(ctx)
 	log.Debugf("[GetRecommendations] metadata is %v; present %v", md, ok)
 	if ok {
-		value := md.Get("Tenantname")
-		log.Debugf("[GetRecommendations] Tenantname value in metadata is %v; Tenantname is %s", value, value[0])
+		value := md.Get("X-forwarded-Host")
+		log.Debugf("[GetRecommendations] X-forwarded-Host value in metadata is %v; X-forwarded-Host is %s", value, value[0])
 	}
 
 	client := pb.NewRecommendationServiceClient(fe.recommendationSvcConn)
 
-	ctx = gm.AppendToOutgoingContext(ctx, "Tenantname", tenantName)
+	ctx = gm.AppendToOutgoingContext(ctx, "X-forwarded-Host", fwdHostName)
 
 	log.Debugf("Got client for recommendation service %v", client)
 	resp, err := client.ListRecommendations(ctx,
@@ -149,11 +149,11 @@ func (fe *frontendServer) getRecommendations(ctx context.Context, userID string,
 	md, ok = gm.FromOutgoingContext(ctx)
 	log.Debugf("[GetRecommendations] metadata is %v; present %v", md, ok)
 	if ok {
-		value := md.Get("Tenantname")
-		log.Debugf("[GetRecommendations] Tenantname value in metadata is %v; Tenantname is %s", value, value[0])
+		value := md.Get("X-forwarded-Host")
+		log.Debugf("[GetRecommendations] X-forwarded-Host value in metadata is %v; X-forwarded-Host is %s", value, value[0])
 	}
 
-	// log.Debugf("Inserted Tenantname grpc metadata")
+	// log.Debugf("Inserted X-forwarded-Host grpc metadata")
 	out := make([]*pb.Product, len(resp.GetProductIds()))
 	for i, v := range resp.GetProductIds() {
 		p, err := fe.getProduct(ctx, v)

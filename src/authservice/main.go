@@ -193,50 +193,50 @@ func isAuthenticated(r *http.Request, log logrus.FieldLogger) bool {
 	sessionType := session.Get(sessionLoginType)
 	log.Infof("You are logged in %s, %s!", sessionType, userName)
 
-	tenantName := r.Header.Get("Tenantname")
-	log.Debugf("tenantName is %v", tenantName)
-	if tenantName != "" {
+	fwdHostName := r.Header.Get("X-forwarded-Host")
+	log.Debugf("fwdHostName is %v", fwdHostName)
+	if fwdHostName != "" {
 		return true
 	}
 
-	r.Header.Set("Tenantname", "Default")
-	tenantName = r.Header.Get("Tenantname")
-	log.Debugf("tenantName is %v", tenantName)
+	r.Header.Set("X-forwarded-Host", "Default")
+	fwdHostName = r.Header.Get("X-forwarded-Host")
+	log.Debugf("fwdHostName is %v", fwdHostName)
 
 	if sessionType == "Google" && strings.Contains(userName, "nithin") {
 		// This is for free shipping
-		log.Debugf("Setting tenantName header for user Nithin to Nithin")
-		r.Header.Set("Tenantname", "Nithin")
-		tenantName = r.Header.Get("Tenantname")
-		log.Debugf("tenantName is %v", tenantName)
+		log.Debugf("Setting fwdHostName header for user Nithin to Nithin")
+		r.Header.Set("X-forwarded-Host", "Nithin")
+		fwdHostName = r.Header.Get("X-forwarded-Host")
+		log.Debugf("fwdHostName is %v", fwdHostName)
 		return true
 	} else if sessionType == "Google" && strings.Contains(userName, "novus") {
 		// This is for showing recommendations
-		log.Debugf("Setting tenantName header for user Temp to Novus")
-		r.Header.Set("Tenantname", "Novus")
-		tenantName = r.Header.Get("Tenantname")
-		log.Debugf("tenantName is %v", tenantName)
+		log.Debugf("Setting fwdHostName header for user Temp to Novus")
+		r.Header.Set("X-forwarded-Host", "Novus")
+		fwdHostName = r.Header.Get("X-forwarded-Host")
+		log.Debugf("fwdHostName is %v", fwdHostName)
 		return true
 	} else if sessionType == "Local" && strings.HasPrefix(userName, "shipUsr") {
 		// This is for local free shipping
-		tenantName = "Tenant" + strings.TrimSuffix(strings.TrimPrefix(userName, "shipUsr"), "@appez.com")
-		log.Debugf("Setting tenantName header for local user %s to %s", userName, tenantName)
-		r.Header.Set("Tenantname", tenantName)
-		tenantName = r.Header.Get("Tenantname")
-		log.Debugf("tenantName is %v", tenantName)
+		fwdHostName = "Tenant" + strings.TrimSuffix(strings.TrimPrefix(userName, "shipUsr"), "@appez.com")
+		log.Debugf("Setting fwdHostName header for local user %s to %s", userName, fwdHostName)
+		r.Header.Set("X-forwarded-Host", fwdHostName)
+		fwdHostName = r.Header.Get("X-forwarded-Host")
+		log.Debugf("fwdHostName is %v", fwdHostName)
 		return true
 	} else if sessionType == "Local" && strings.HasPrefix(userName, "roboCost") {
 		// This is for local free shipping
-		tenantName = "Tenant" + strings.TrimSuffix(strings.TrimPrefix(userName, "roboCost"), "@appez.com")
-		log.Infof("Setting tenantName header for local user %s to %s", userName, tenantName)
-		r.Header.Set("Tenantname", tenantName)
-		tenantName = r.Header.Get("Tenantname")
-		log.Infof("tenantName is %v", tenantName)
+		fwdHostName = "Tenant" + strings.TrimSuffix(strings.TrimPrefix(userName, "roboCost"), "@appez.com")
+		log.Infof("Setting fwdHostName header for local user %s to %s", userName, fwdHostName)
+		r.Header.Set("X-forwarded-Host", fwdHostName)
+		fwdHostName = r.Header.Get("X-forwarded-Host")
+		log.Infof("fwdHostName is %v", fwdHostName)
 		return true
 	} else {
-		log.Debugf("Set tenantName header for all other users to Default")
-		tenantName = r.Header.Get("Tenantname")
-		log.Debugf("tenantName is %v", tenantName)
+		log.Debugf("Set fwdHostName header for all other users to Default")
+		fwdHostName = r.Header.Get("X-forwarded-Host")
+		log.Debugf("fwdHostName is %v", fwdHostName)
 		return true
 	}
 
@@ -288,7 +288,7 @@ func main() {
 
 	ctx := context.Background()
 	log := logrus.New()
-	log.Level = logrus.InfoLevel
+	log.Level = logrus.DebugLevel
 	log.Formatter = &logrus.JSONFormatter{
 		FieldMap: logrus.FieldMap{
 			logrus.FieldKeyTime:  "timestamp",
@@ -438,14 +438,14 @@ func main() {
 	googleOauth2Config := &oauth2.Config{
 		ClientID:     config.GoogleClientID,
 		ClientSecret: config.GoogleClientSecret,
-		RedirectURL:  "http://appez-multiusertest.rightelast.com:20080/google/callback",
+		RedirectURL:  "https://appez-multiusertest.rightelast.com/google/callback",
 		Endpoint:     googleOAuth2.Endpoint,
 		Scopes:       []string{"profile", "email"},
 	}
 	githubOauth2Config := &oauth2.Config{
 		ClientID:     config.GithubClientID,
 		ClientSecret: config.GithubClientSecret,
-		RedirectURL:  "http://appez-multiusertest.rightelast.com:20080/github/callback",
+		RedirectURL:  "https://appez-multiusertest.rightelast.com/github/callback",
 		Endpoint:     githubOAuth2.Endpoint,
 		Scopes:       []string{"profile", "email"},
 	}
