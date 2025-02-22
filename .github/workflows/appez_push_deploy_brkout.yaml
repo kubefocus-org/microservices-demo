@@ -47,6 +47,7 @@ jobs:
             name: recommendationservice
           - kind: Service
             name: recommendationservice
+          routingMode: basic
           routingRules:
             httpRoute: {}
           scope: public
