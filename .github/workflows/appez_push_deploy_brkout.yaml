@@ -7,6 +7,7 @@ on:
     - opened
     - edited
     - reopened
+    - synchronize
 
 jobs:
   test-print:
@@ -20,7 +21,7 @@ jobs:
   create-brkout:
     needs:
     - test-print
-    if: endsWith(github.head_ref, 'dev--ftr/showrecos--brkout/showrecos-brkout1')
+    if: endsWith(github.head_ref, 'dev--ftr/showrecos--brkout/showrecos-brkout1') && github.event_name == 'pull_request' && github.event.action == 'synchronize'
     runs-on: [usvcs-runner]
     steps:
     - uses: actions/checkout@v4
