@@ -1,13 +1,16 @@
 # Look for the tags __MAKE__CHANGES__FROM__HERE__ and __MAKE__CHANGES__TO__HERE__
 name: "Update and deploy breakout"
 on:
-  push:
+  pull_request:
     # run on push to branch
-    branches:
-      - dev--ftr/showrecos--brkout/showrecos-brkout1
+	types:
+	  - opened
+	  - edited
+	  - reopened
 
 jobs:
   create-brkout:
+    if: github.head_ref == dev--ftr/showrecos--brkout/showrecos-brkout1
     runs-on: [usvcs-runner]
     steps:
     - uses: actions/checkout@v4
@@ -54,4 +57,4 @@ jobs:
         status: {}
         EOF
         #
-        # curl -X PUT http://appez-api.rightelast.com:20082/api/v1/breakouts -H 'Content-Type: application/x-yaml' --data-binary @breakout.yaml
+        curl -X PUT https://appez-api.rightelast.com/api/v1/breakouts -H 'Content-Type: application/x-yaml' --data-binary @breakout.yaml
