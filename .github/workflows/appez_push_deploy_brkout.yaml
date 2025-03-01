@@ -10,7 +10,7 @@ on:
 
 jobs:
   create-brkout:
-    if: github.head_ref == dev--ftr/showrecos--brkout/showrecos-brkout1
+    if: (github.head_ref == 'refs/heads/dev--ftr/showrecos--brkout/showrecos-brkout1')
     runs-on: [usvcs-runner]
     steps:
     - uses: actions/checkout@v4
