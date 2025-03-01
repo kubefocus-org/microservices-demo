@@ -14,9 +14,11 @@ jobs:
     runs-on: [usvcs-runner]
     steps:
     - name: Test print github variable
+      env:
+        GITHUB_CONTEXT: ${{ toJson(github) }}
       run: |
         echo ${{ github.head_ref }}
-        echo ${{ toJson(github) }}
+        echo "$GITHUB_CONTEXT"
 
   create-brkout:
     needs:
