@@ -20,9 +20,9 @@ jobs:
         # place build commands here
         # Build image and push to registry for container 'server' of deployment 'shippingservice'
         cd src/shippingservice
-        docker buildx build . -t registry.gitlab.com/novusbee/microservices/shippingservice:varFreeShipv2
-        docker push registry.gitlab.com/novusbee/microservices/shippingservice:varFreeShipv2
-        echo "IMAGE_shippingservice_server=registry.gitlab.com/novusbee/microservices/shippingservice:varFreeShipv2" >> $GITHUB_OUTPUT
+        docker buildx build . -t registry.gitlab.com/novusbee/microservices/shippingservice:varFreeShipv3
+        docker push registry.gitlab.com/novusbee/microservices/shippingservice:varFreeShipv3
+        echo "IMAGE_shippingservice_server=registry.gitlab.com/novusbee/microservices/shippingservice:varFreeShipv3" >> $GITHUB_OUTPUT
         cd ../..
         
         # __MAKE__CHANGES__TO__HERE__
