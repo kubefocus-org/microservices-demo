@@ -1,10 +1,11 @@
 # Look for the tags __MAKE__CHANGES__FROM__HERE__ and __MAKE__CHANGES__TO__HERE__
 name: "Update and deploy breakout"
 on:
-  push:
+  # push:
+  workflow_dispatch:
     # run on push to branch
-    branches:
-    - dev--ftr/freeshipping--brkout/freeship003
+    # branches:
+    # - dev--ftr/freeshipping--brkout/freeship003
 
 jobs:
   create-brkout:
