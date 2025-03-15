@@ -47,7 +47,7 @@ jobs:
         kind: Breakout
         metadata:
           creationTimestamp: null
-          name: '%%BRKOUT_NAME%%'
+          name: %%BRKOUT_NAME%%
           namespace: appez-kf1f-j582-l7cf02-m74b882c
         spec:
           application: onlineboutique
@@ -84,13 +84,15 @@ jobs:
         cat breakout.yaml
 
     - name: Create Breakout on PR opened
-      if: github.event.action == "opened"
+      if: ${{ github.event.action }} == "opened"
       run: |
+        echo ${{ github.event.action }}
         echo "I just created a PR and will create the corresponding breakout"
         # curl -X POST https://appez.rightelast.com/api/v1/breakouts -H 'Content-Type: application/x-yaml' --data-binary @breakout.yaml
  
     - name: Update Breakout on PR synchronize
-      if: github.event.action == "synchronize"
+      if: ${{ github.event.action }} == "synchronize"
       run: |
+        echo ${{ github.event.action }}
         echo "I just updated a PR and will update the corresponding breakout"
         # curl -X PUT https://appez.rightelast.com/api/v1/breakouts -H 'Content-Type: application/x-yaml' --data-binary @breakout.yaml
