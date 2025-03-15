@@ -25,7 +25,7 @@ jobs:
       timeout-minutes: 20
       run: |
         echo "$brkoutName"
-        echo "$GITHUB_CONTEXT"
+        # echo "$GITHUB_CONTEXT"
         # __MAKE__CHANGES__FROM__HERE__
 
         # place build commands here
@@ -84,13 +84,13 @@ jobs:
         cat breakout.yaml
 
     - name: Create Breakout on PR opened
-      if: ${{ github.event.action == "opened" }}
+      if: github.event.action == "opened"
       run: |
         echo "I just created a PR and will create the corresponding breakout"
         # curl -X POST https://appez.rightelast.com/api/v1/breakouts -H 'Content-Type: application/x-yaml' --data-binary @breakout.yaml
  
     - name: Update Breakout on PR synchronize
-      if: ${{ github.event.action == "synchronize" }}
+      if: github.event.action == "synchronize"
       run: |
         echo "I just updated a PR and will update the corresponding breakout"
         # curl -X PUT https://appez.rightelast.com/api/v1/breakouts -H 'Content-Type: application/x-yaml' --data-binary @breakout.yaml
