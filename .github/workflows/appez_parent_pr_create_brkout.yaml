@@ -93,6 +93,26 @@ jobs:
     - name: Update Breakout on PR synchronize
       if: github.event.action == 'synchronize'
       run: |
+        CODE=`curl --write-out '%{http_code}' \
+              --silent \
+              --output /dev/null \
+              -X GET \
+              https://appez.rightelast.com/api/v1/breakouts/detail?cluster=clstr-do-001&environment=dev\&application=onlineboutique\&feature=freeshipping\&breakout=PR-18`
+        if [ "$CODE" == "404" ] 
+        then
+          echo "Not found. Creating through POST"
+          METHOD="POST"
+        else
+          if [ "$CODE" == "200" ]
+          then
+            echo "Found. Updating through PUT"
+            METHOD="PUT"
+          else
+            echo "FAILURE. Exiting."
+            exit 1
+          fi
+        fi
         echo ${{ github.event.action }}
+        echo $METHOD
         echo "I just updated a PR and will update the corresponding breakout"
-        # curl -X PUT https://appez.rightelast.com/api/v1/breakouts -H 'Content-Type: application/x-yaml' --data-binary @breakout.yaml
+        # curl -X $METHOD https://appez.rightelast.com/api/v1/breakouts -H 'Content-Type: application/x-yaml' --data-binary @breakout.yaml
