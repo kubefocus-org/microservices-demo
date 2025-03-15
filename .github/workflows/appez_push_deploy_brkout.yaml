@@ -71,4 +71,4 @@ jobs:
         status: {}
         EOF
         #
-        curl -X PUT https://appez.rightelast.com/api/v1/breakouts -H 'Content-Type: application/x-yaml' --data-binary @breakout.yaml
+        # curl -X PUT https://appez.rightelast.com/api/v1/breakouts -H 'Content-Type: application/x-yaml' --data-binary @breakout.yaml
