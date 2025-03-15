@@ -85,10 +85,10 @@ jobs:
       if: ${{ github.event.action }} == "opened"
       run: |
         echo "I just created a PR and will create the corresponding breakout"
-        curl -X POST https://appez.rightelast.com/api/v1/breakouts -H 'Content-Type: application/x-yaml' --data-binary @breakout.yaml
+        # curl -X POST https://appez.rightelast.com/api/v1/breakouts -H 'Content-Type: application/x-yaml' --data-binary @breakout.yaml
  
     - name: Update Breakout on PR synchronize
       if: ${{ github.event.action }} == "synchronize"
       run: |
         echo "I just updated a PR and will update the corresponding breakout"
-        curl -X PUT https://appez.rightelast.com/api/v1/breakouts -H 'Content-Type: application/x-yaml' --data-binary @breakout.yaml
+        # curl -X PUT https://appez.rightelast.com/api/v1/breakouts -H 'Content-Type: application/x-yaml' --data-binary @breakout.yaml
