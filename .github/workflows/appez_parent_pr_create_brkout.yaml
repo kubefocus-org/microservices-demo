@@ -14,7 +14,7 @@ env:
 
 jobs:
   brkout-pr-to-parent:
-    if: github.head_ref == "dev--ftr/freeshipping--brkout/freeship007"
+    if: ${{ github.head_ref }} == "dev--ftr/freeshipping--brkout/freeship007"
     runs-on: [usvcs-runner]
     steps:
     - uses: actions/checkout@v4
