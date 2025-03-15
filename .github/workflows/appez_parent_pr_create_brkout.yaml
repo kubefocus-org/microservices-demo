@@ -11,6 +11,7 @@ on:
 
 env:
   brkoutName: "PR-${{ github.event.number }}"
+  GITHUB_CONTEXT: ${{ toJSON(github) }}
 
 jobs:
   brkout-pr-to-parent:
@@ -24,6 +25,7 @@ jobs:
       timeout-minutes: 20
       run: |
         echo "$brkoutName"
+        echo "$GITHUB_CONTEXT"
         # __MAKE__CHANGES__FROM__HERE__
 
         # place build commands here
