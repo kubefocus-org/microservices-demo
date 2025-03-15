@@ -11,7 +11,7 @@ on:
 
 env:
   brkoutName: "PR-${{ github.event.number }}"
-  GITHUB_CONTEXT: ${{ toJSON(github) }}
+  # GITHUB_CONTEXT: ${{ toJSON(github) }}
 
 jobs:
   brkout-pr-to-parent:
@@ -84,14 +84,14 @@ jobs:
         cat breakout.yaml
 
     - name: Create Breakout on PR opened
-      if: ${{ github.event.action }} == "opened"
+      if: github.event.action == 'opened'
       run: |
         echo ${{ github.event.action }}
         echo "I just created a PR and will create the corresponding breakout"
         # curl -X POST https://appez.rightelast.com/api/v1/breakouts -H 'Content-Type: application/x-yaml' --data-binary @breakout.yaml
  
     - name: Update Breakout on PR synchronize
-      if: ${{ github.event.action }} == "synchronize"
+      if: github.event.action == 'synchronize'
       run: |
         echo ${{ github.event.action }}
         echo "I just updated a PR and will update the corresponding breakout"
