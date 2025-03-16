@@ -1,0 +1,116 @@
+# Look for the tags __MAKE__CHANGES__FROM__HERE__ and __MAKE__CHANGES__TO__HERE__
+name: "Pull request create from breakout to parent"
+on:
+  pull_request:
+    types:
+    - opened
+    - synchronize
+    # run on pull request to parent of breakout branch
+    branches:
+    - dev--ftr/freeshipping--brkout/default
+
+env:
+  brkoutName: pr-${{ github.event.number }}
+
+jobs:
+  brkout-pr-to-parent:
+    if: github.head_ref == 'dev--ftr/freeshipping--brkout/freeship010'
+    runs-on: [usvcs-runner]
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Build deployments
+      id: build
+      timeout-minutes: 20
+      run: |
+        echo "$brkoutName"
+        # __MAKE__CHANGES__FROM__HERE__
+
+        # place build commands here
+        # Build image and push to registry for container 'server' of deployment 'shippingservice'
+        tag=`git rev-parse --short=8 HEAD`
+        cd src/shippingservice
+        docker buildx build . -t registry.gitlab.com/novusbee/microservices/shippingservice:${tag}
+        docker push registry.gitlab.com/novusbee/microservices/shippingservice:${tag}
+        echo "IMAGE_shippingservice_server=registry.gitlab.com/novusbee/microservices/shippingservice:${tag}" >> $GITHUB_OUTPUT
+        cd ../..
+        
+        # __MAKE__CHANGES__TO__HERE__
+
+    - name: Generate Breakout File
+      timeout-minutes: 20
+      run: |
+        cat <<EOF > breakout.yaml
+        apiVersion: appez.rightelast.com/v1beta1
+        kind: Breakout
+        metadata:
+          creationTimestamp: null
+          name: '%%BRKOUT_NAME%%'
+          namespace: appez-kf1f-j582-l7cf02-m74b882c
+        spec:
+          application: onlineboutique
+          baseBreakout: appez-dflt-brkout
+          cluster: clstr-do-001
+          environment: dev
+          feature: freeshipping
+          moduleRefs:
+          - containers:
+            - buildCommands: |
+                tag=`git rev-parse --short=8 HEAD`
+                cd src/shippingservice
+                docker buildx build . -t registry.gitlab.com/novusbee/microservices/shippingservice:${tag}
+                docker push registry.gitlab.com/novusbee/microservices/shippingservice:${tag}
+                echo "IMAGE_shippingservice_server=registry.gitlab.com/novusbee/microservices/shippingservice:${tag}" >> %%GITHUB_OUTPUT%%
+                cd ../..
+              env:
+              - name: NUM_ITEMS_FOR_FREE_SHIPPING
+                value: "003"
+              envType: Add
+              image: ${{ steps.build.outputs.IMAGE_shippingservice_server }}
+              name: server
+              resources: {}
+            kind: Deployment
+            name: shippingservice
+          - kind: Service
+            name: shippingservice
+          routingRules:
+            httpRoute: {}
+          scope: protected
+        status: {}
+        EOF
+        sed -i "s|%%BRKOUT_NAME%%|$brkoutName|g" breakout.yaml
+        cat breakout.yaml
+
+    - name: Create Breakout on PR opened
+      if: github.event.action == 'opened'
+      run: |
+        echo "I just created a PR and will create the corresponding breakout"
+        curl -X POST https://appez.rightelast.com/api/v1/breakouts -H 'Content-Type: application/x-yaml' --data-binary @breakout.yaml
+ 
+    - name: Update Breakout on PR synchronize
+      if: github.event.action == 'synchronize'
+      run: |
+        CODE=`curl --write-out '%{http_code}' \
+              --silent \
+              --output /dev/null \
+              -X GET \
+              https://appez.rightelast.com/api/v1/breakouts/detail?cluster=clstr-do-001\&environment=dev\&application=onlineboutique\&feature=freeshipping\&breakout=$brkoutName`
+        echo "CODE=$CODE"
+        if [ "$CODE" == "404" ] 
+        then
+          echo "Not found. Creating through POST"
+          METHOD="POST"
+        else
+          if [ "$CODE" == "200" ]
+          then
+            echo "Found. Updating through PUT"
+            METHOD="PUT"
+          else
+            echo "FAILURE. Exiting."
+            exit 1
+          fi
+        fi
+        echo ${{ github.event.action }}
+        echo $METHOD
+        echo "I just updated a PR and will update the corresponding breakout"
+        curl -X $METHOD https://appez.rightelast.com/api/v1/breakouts -H 'Content-Type: application/x-yaml' --data-binary @breakout.yaml
