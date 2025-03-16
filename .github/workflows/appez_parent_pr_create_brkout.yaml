@@ -98,6 +98,7 @@ jobs:
               --output /dev/null \
               -X GET \
               https://appez.rightelast.com/api/v1/breakouts/detail?cluster=clstr-do-001&environment=dev\&application=onlineboutique\&feature=freeshipping\&breakout=PR-18`
+        echo "CODE=$CODE"
         if [ "$CODE" == "404" ] 
         then
           echo "Not found. Creating through POST"
