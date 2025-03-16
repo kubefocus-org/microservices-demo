@@ -90,7 +90,7 @@ jobs:
     - name: Update Breakout on PR synchronize
       if: github.event.action == 'synchronize'
       run: |
-        CODE=`curl --write-out '%{http_code}' 
+        CODE=`curl --write-out '%{http_code}' \
               --silent \
               --output /dev/null \
               -X GET \
