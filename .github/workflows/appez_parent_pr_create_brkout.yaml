@@ -10,7 +10,7 @@ on:
     - dev--ftr/freeshipping--brkout/default
 
 env:
-  brkoutName: "PR-${{ github.event.number }}"
+  brkoutName: pr-${{ github.event.number }}
 
 jobs:
   brkout-pr-to-parent:
