@@ -78,8 +78,8 @@ jobs:
           scope: protected
         status: {}
         EOF
-    sed -i "s|%%BRKOUT_NAME%%|$brkoutName|g" breakout.yaml
-    cat breakout.yaml
+        sed -i "s|%%BRKOUT_NAME%%|$brkoutName|g" breakout.yaml
+        cat breakout.yaml
 
     - name: Create Breakout on PR opened
       if: github.event.action == 'opened'
