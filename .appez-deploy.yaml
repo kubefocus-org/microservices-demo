@@ -570,8 +570,8 @@ spec:
         - /bin/sh
         - -exc
         - |
-          echo "Init container pinging authservice: ${AUTHSERVICE_ADDR}..."
-          STATUSCODE=$(wget --server-response http://${AUTHSERVICE_ADDR} 2>&1 | awk '/^  HTTP/{print $2}')
+          echo "Init container pinging frontend: ${FRONTEND_ADDR}..."
+          STATUSCODE=$(wget --server-response http://${FRONTEND_ADDR} 2>&1 | awk '/^  HTTP/{print $2}')
           if test $STATUSCODE -ne 200; then
               echo "Error: Could not reach frontend - Status code: ${STATUSCODE}"
               exit 1
@@ -586,8 +586,8 @@ spec:
           readOnlyRootFilesystem: true
         image: busybox:latest
         env:
-        - name: AUTHSERVICE_ADDR
-          value: "authservice:80"
+        - name: FRONTEND_ADDR
+          value: "frontend:80"
       imagePullSecrets:
       - name: gitlab-pull-secret
       containers:
@@ -603,8 +603,8 @@ spec:
         args:
         - loop
         env:
-        - name: AUTHSERVICE_ADDR
-          value: "authservice:80"
+        - name: FRONTEND_ADDR
+          value: "frontend:80"
         - name: USERS
           value: "10"
         resources:
@@ -890,190 +890,4 @@ spec:
   - name: grpc
     port: 9555
     targetPort: 9555
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  creationTimestamp: null
-  name: poddepl
-  namespace: onlineboutique
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  verbs:
-  - list
-- apiGroups:
-  - apps
-  resources:
-  - deployments
-  verbs:
-  - list
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: authservice
-  namespace: onlineboutique
-spec:
-  selector:
-    matchLabels:
-      app: authservice
-  template:
-    metadata:
-      labels:
-        app: authservice
-      annotations:
-        sidecar.istio.io/rewriteAppHTTPProbers: "true"
-    spec:
-      serviceAccountName: default
-      imagePullSecrets:
-      - name: gitlab-pull-secret
-      containers:
-        - name: server
-          image: registry.gitlab.com/novusbee/microservices/authservice:ubuntuV3
-          imagePullPolicy: Always
-          ports:
-          - containerPort: 8080
-          args:
-          - start
-          env:
-          - name: PORT
-            value: "8080"
-          - name: PRODUCT_CATALOG_SERVICE_ADDR
-            value: "productcatalogservice:3550"
-          - name: CURRENCY_SERVICE_ADDR
-            value: "currencyservice:7000"
-          - name: CART_SERVICE_ADDR
-            value: "cartservice:7070"
-          - name: RECOMMENDATION_SERVICE_ADDR
-            value: "recommendationservice:8080"
-          - name: SHIPPING_SERVICE_ADDR
-            value: "shippingservice:50051"
-          - name: CHECKOUT_SERVICE_ADDR
-            value: "checkoutservice:5050"
-          - name: AD_SERVICE_ADDR
-            value: "adservice:9555"
-          # # ENV_PLATFORM: One of: local, gcp, aws, azure, onprem, alibaba
-          # # When not set, defaults to "local" unless running in GKE, otherwies auto-sets to gcp 
-          # - name: ENV_PLATFORM 
-          #   value: "aws"
-          - name: ENABLE_PROFILER
-            value: "0"
-          # - name: CYMBAL_BRANDING
-          #   value: "true"
-          - name: GOOGLE_CLIENT_ID
-            value: "326961585664-m1jc52ellhkg8e3n4o5c331t7ash8ajb.apps.googleusercontent.com"
-          - name: GOOGLE_CLIENT_SECRET
-            value: "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"
-          - name: GITHUB_CLIENT_ID
-            value: "Iv1.c871486562a58a18"
-          - name: GITHUB_CLIENT_SECRET
-            value: "dc763456b98d9a7f3a09ec181d4675571300dc47"
-          resources:
-            requests:
-              cpu: 100m
-              memory: 64Mi
-            limits:
-              cpu: 200m
-              memory: 128Mi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: authservice
-  namespace: onlineboutique
-spec:
-  type: ClusterIP
-  selector:
-    app: authservice
-  ports:
-  - name: http
-    port: 80
-    targetPort: 8080
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: mysql-secret
-  namespace: onlineboutique
-type: kubernetes.io/basic-auth
-stringData:
-  password: test1234
----
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: ob-mysql-pv-volume
-spec:
-  storageClassName: ob-mysql-nfs-pv
-  capacity:
-    storage: 2Gi
-  accessModes:
-    - ReadWriteMany
-  nfs:
-    server: devserver1.rightelast.com
-    path: /srv/nfs/kubedata/ob-mysql-data
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: mysql-pv-claim
-  namespace: onlineboutique
-spec:
-  storageClassName: ob-mysql-nfs-pv
-  accessModes:
-    - ReadWriteMany
-  resources:
-    requests:
-      storage: 2Gi
----      
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: mysql
-  namespace: onlineboutique
-spec:
-  selector:
-    matchLabels:
-      app: mysql
-  strategy:
-    type: Recreate
-  template:
-    metadata:
-      labels:
-        app: mysql
-    spec:
-      containers:
-      - image: mysql:latest
-        name: mysql
-        env:
-        - name: MYSQL_ROOT_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: mysql-secret
-              key: password
-        ports:
-        - containerPort: 3306
-          name: mysql
-        volumeMounts:
-        - name: mysql-persistent-storage
-          mountPath: /var/lib/mysql
-      volumes:
-      - name: mysql-persistent-storage
-        persistentVolumeClaim:
-          claimName: mysql-pv-claim
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: mysql
-  namespace: onlineboutique
-spec:
-  ports:
-  - port: 3306
-  selector:
-    app: mysql
-
 # [END gke_release_kubernetes_manifests_microservices_demo]
