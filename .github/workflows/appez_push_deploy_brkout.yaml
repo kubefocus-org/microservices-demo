@@ -1,0 +1,114 @@
+# Look for the tags __MAKE__CHANGES__FROM__HERE__ and __MAKE__CHANGES__TO__HERE__
+name: "Update and deploy breakout"
+on:
+  push:
+    # run on push to branch
+    branches:
+    - c/j5k--e/x6--f/dd6gg--b/f8
+	
+jobs: 
+  check-permissions:
+    runs-on: [kubefocus-org]
+    steps:
+    - name: Check Permissions
+      id: checkPerms
+      timeout-minutes: 20
+      run: |
+        at=$(curl --silent -X POST https://appez-keycloak.kubefocus.com/realms/kubefocus.com/protocol/openid-connect/token   -d grant_type=client_credentials   -d client_id=${{secrets.KC_CLIENT_ID}} -d client_secret=${{ secrets.KC_CLIENT_SECRET }} -d scope=openid | jq -r '.access_token')
+        result=$(curl --silent -XPOST 'https://appez-keycloak.kubefocus.com/admin/realms/kubefocus.com/clients/${{ secrets.KC_CLIENT_UUID }}/authz/resource-server/policy/evaluate' -H 'accept: application/json' -H "authorization: Bearer ${at}" -H 'content-type: application/json' --data-raw '{"userId":"d5df9e5d-eab2-45ff-baca-a89ac4f1c4a4","resources":[{"_id":"8d2fd1e9-3939-4782-b3a4-03e46a13c984","scopes":[{"name":"update"}]}]}' | jq -r '.results.[0].allowedScopes | length')
+        if [[ "$result" -eq 0 ]]; then
+          echo "User does not permission to update breakout. Skipping workflow."
+          exit 1
+        else
+          echo "User can update the breakout. Continuing."
+          exit 0
+        fi
+
+  wait-for-in-progress:
+    runs-on: [kubefocus-org]
+      steps:
+      - name: Wait for in progress jobs
+        id: waitRsrcInProg
+        timeout-minutes: 20
+        run: |
+          timeout=600
+          interval=10
+          elapsed=0
+
+          while true; do
+            at=$(curl --silent -X POST https://appez-keycloak.kubefocus.com/realms/kubefocus.com/protocol/openid-connect/token   -d grant_type=client_credentials   -d client_id=${{secrets.KC_CLIENT_ID}} -d client_secret=${{ secrets.KC_CLIENT_SECRET }} -d scope=openid | jq -r '.access_token')
+            result=$(curl -s -H 'accept: application/json' -H "X-Auth-Bearer-Token: ${at}" -H 'content-type: application/json' 'https://appez.kubefocus.com/api/v1/breakouts/detail?organization=kubefocus.com&cluster=do1&environment=dev&application=microservices-demo&feature=freeshipping&breakout=fs003' -w "%{http_code}" -o /dev/null)
+            if [[ "$result" -eq 200 ]]; then
+              echo "Able to access brkout"
+            else
+              echo "Error in accessing breakout. Skipping workflow."
+              exit 1
+            fi
+
+            inProg=$(curl -s -H 'accept: application/json' -H "X-Auth-Bearer-Token: ${at}" -H 'content-type: application/json' 'https://appez.kubefocus.com/api/v1/breakouts/detail?organization=kubefocus.com&cluster=do1&environment=dev&application=microservices-demo&feature=freeshipping&breakout=fs003' 2> /dev/null | jq -e '.metadata.annotations."appez-in-progress"')
+            if [[ "$inProg" == "\"true\"" ]]; then
+              echo "Breakout resource processing is in progress. Retrying after 10 seconds."
+            else
+              echo "Breakout resource processing is not in progress. Continue with update"
+              break
+            fi
+
+            if [ "$elapsed" -ge "$timeout" ]; then
+              echo "Timed out waiting for breakout processing to complete." >&2
+              exit 1
+            fi
+
+            echo "Waiting for breakout processing to complete..."
+            sleep $interval
+            elapsed=$((elapsed + interval))
+          done
+  update-brkout:
+    runs-on: [kubefocus-org]
+	needs:
+	- check-permissions
+	- wait-for-in-progress
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Build deployments
+      id: build
+      timeout-minutes: 20
+      run: |
+        # __MAKE__CHANGES__FROM__HERE__
+
+        # place build commands here
+        # Build image and push to registry for container 'server' of deployment 'shippingservice'
+        tag=`git rev-parse --short=8 HEAD`
+        cd src/shippingservice
+        docker buildx build . -t registry.gitlab.com/novusbee/microservices/shippingservice:${tag}
+        docker push registry.gitlab.com/novusbee/microservices/shippingservice:${tag}
+        echo "IMAGE_shippingservice_server=registry.gitlab.com/novusbee/microservices/shippingservice:${tag}" >> $GITHUB_OUTPUT
+        cd ../..
+        
+        # __MAKE__CHANGES__TO__HERE__
+
+    - name: Update Breakout
+      timeout-minutes: 20
+      run: |
+        at=`curl --silent -X POST https://appez-keycloak.kubefocus.com/realms/kubefocus.com/protocol/openid-connect/token   -d grant_type=client_credentials   -d client_id=${{secrets.KC_CLIENT_ID}} -d client_secret=${{ secrets.KC_CLIENT_SECRET }} -d scope=openid | jq -r '.access_token'`
+        curl -X PUT https://appez.kubefocus.com/api/v1/breakouts -H "X-Auth-Bearer-Token: ${at}" -H 'Content-Type: application/json' --data-binary @breakout.json
+        at=$(curl --silent -X POST https://appez-keycloak.kubefocus.com/realms/kubefocus.com/protocol/openid-connect/token   -d grant_type=client_credentials   -d client_id=${{secrets.KC_CLIENT_ID}} -d client_secret=${{ secrets.KC_CLIENT_SECRET }} -d scope=openid | jq -r '.access_token')
+        result=$(curl -s -H 'accept: application/json' -H "X-Auth-Bearer-Token: ${at}" -H 'content-type: application/json' 'https://appez.kubefocus.com/api/v1/breakouts/detail?organization=kubefocus.com&cluster=do1&environment=dev&application=microservices-demo&feature=freeshipping&breakout=fs003' 2> /dev/null)
+    
+        result=$(jq '.spec.moduleRefs |= map(
+          if .kind == "Deployment" and .name == shippingservice then
+            .containers |= map(
+              if .name == server then
+                .image = ${{ steps.build.outputs.IMAGE_shippingservice_server }}
+              end
+            )
+          end
+        )' $result)
+
+        jq $result > breakout.json
+
+    - name: Update Breakout
+      timeout-minutes: 20
+      run: |
+        at=`curl --silent -X POST https://appez-keycloak.kubefocus.com/realms/kubefocus.com/protocol/openid-connect/token   -d grant_type=client_credentials   -d client_id=${{secrets.KC_CLIENT_ID}} -d client_secret=${{ secrets.KC_CLIENT_SECRET }} -d scope=openid | jq -r '.access_token'`
+        curl -X PUT https://appez.kubefocus.com/api/v1/breakouts -H "X-Auth-Bearer-Token: ${at}" -H 'Content-Type: application/json' --data-binary @breakout.json
