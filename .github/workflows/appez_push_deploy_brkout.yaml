@@ -105,7 +105,7 @@ jobs:
           end
         )' $result)
 
-        jq $result > breakout.json
+        echo $result | jq > breakout.json
 
     - name: Update Breakout
       timeout-minutes: 20
