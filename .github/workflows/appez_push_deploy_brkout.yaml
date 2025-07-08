@@ -100,7 +100,7 @@ jobs:
           if .kind == "Deployment" and .name == "shippingservice" then
             .containers |= map(
               if .name == "server" then
-                .image = \"${{ steps.build.outputs.IMAGE_shippingservice_server }}\"
+                .image = "${{ steps.build.outputs.IMAGE_shippingservice_server }}"
               end
             )
           end
