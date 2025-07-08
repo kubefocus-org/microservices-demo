@@ -26,6 +26,8 @@ jobs:
 
   wait-for-in-progress:
     runs-on: [kubefocus-org]
+    needs:
+    - check-permissions
     steps:
     - name: Wait for in progress jobs
       id: waitRsrcInProg
@@ -62,6 +64,7 @@ jobs:
           sleep $interval
           elapsed=$((elapsed + interval))
         done
+
   update-brkout:
     runs-on: [kubefocus-org]
     needs:
