@@ -97,7 +97,7 @@ jobs:
         curl -X PUT https://appez.kubefocus.com/api/v1/breakouts -H "X-Auth-Bearer-Token: ${at}" -H 'Content-Type: application/json' --data-binary @breakout.json
         at=$(curl --silent -X POST https://appez-keycloak.kubefocus.com/realms/kubefocus.com/protocol/openid-connect/token   -d grant_type=client_credentials   -d client_id=${{secrets.KC_CLIENT_ID}} -d client_secret=${{ secrets.KC_CLIENT_SECRET }} -d scope=openid | jq -r '.access_token')
         result=$(curl -s -H 'accept: application/json' -H "X-Auth-Bearer-Token: ${at}" -H 'content-type: application/json' 'https://appez.kubefocus.com/api/v1/breakouts/detail?organization=kubefocus.com&cluster=do1&environment=dev&application=microservices-demo&feature=freeshipping&breakout=fs003' 2> /dev/null)
-    
+
         result=$(jq '.spec.moduleRefs |= map(
           if .kind == "Deployment" and .name == shippingservice then
             .containers |= map(
@@ -108,6 +108,7 @@ jobs:
           end
         )' $result)
 
+        echo $result | jq
         echo $result | jq > breakout.json
 
     - name: Update Breakout
