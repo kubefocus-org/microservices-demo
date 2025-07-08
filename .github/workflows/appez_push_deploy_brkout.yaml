@@ -79,7 +79,7 @@ jobs:
         
         # __MAKE__CHANGES__TO__HERE__
 
-    - name: Update Breakout
+    - name: Update Container Images
       timeout-minutes: 20
       run: |
         at=`curl --silent -X POST https://appez-keycloak.kubefocus.com/realms/kubefocus.com/protocol/openid-connect/token   -d grant_type=client_credentials   -d client_id=${{secrets.KC_CLIENT_ID}} -d client_secret=${{ secrets.KC_CLIENT_SECRET }} -d scope=openid | jq -r '.access_token'`
