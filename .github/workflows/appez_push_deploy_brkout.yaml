@@ -100,11 +100,11 @@ jobs:
 
         echo $result | jq -r '.spec.moduleRefs'
 
-        echo $result | jq -r '.spec.moduleRefs'
-        echo $result | jq > breakout.json
+        # echo $result | jq -r '.spec.moduleRefs'
+        # echo $result | jq > breakout.json
 
     - name: Update Breakout
       timeout-minutes: 20
       run: |
-        at=`curl --silent -X POST https://appez-keycloak.kubefocus.com/realms/kubefocus.com/protocol/openid-connect/token   -d grant_type=client_credentials   -d client_id=${{secrets.KC_CLIENT_ID}} -d client_secret=${{ secrets.KC_CLIENT_SECRET }} -d scope=openid | jq -r '.access_token'`
-        curl -X PUT https://appez.kubefocus.com/api/v1/breakouts -H "X-Auth-Bearer-Token: ${at}" -H 'Content-Type: application/json' --data-binary @breakout.json
+        # at=`curl --silent -X POST https://appez-keycloak.kubefocus.com/realms/kubefocus.com/protocol/openid-connect/token   -d grant_type=client_credentials   -d client_id=${{secrets.KC_CLIENT_ID}} -d client_secret=${{ secrets.KC_CLIENT_SECRET }} -d scope=openid | jq -r '.access_token'`
+        # curl -X PUT https://appez.kubefocus.com/api/v1/breakouts -H "X-Auth-Bearer-Token: ${at}" -H 'Content-Type: application/json' --data-binary @breakout.json
