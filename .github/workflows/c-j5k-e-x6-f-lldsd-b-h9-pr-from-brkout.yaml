@@ -1,0 +1,119 @@
+# Look for the tags __MAKE__CHANGES__FROM__HERE__ and __MAKE__CHANGES__TO__HERE__
+name: "Pull request create from breakout to parent"
+on:
+  pull_request:
+    types:
+    - labeled
+    - opened
+    - synchronize
+    # run on pull request from breakout branch
+
+env:
+  brkoutName: pr-${{ github.event.number }}
+
+jobs:
+  check-label:
+    runs-on: [kubefocus-org]
+    steps:
+    - name: Check for label
+      if: contains(join(github.event.pull_request.labels.*.name, ','), 'breakout')
+      run: echo "PR has the 'breakout' label!"
+  create-pr-breakout:
+    needs: check-label
+    if: github.head_ref == 'c/j5k-e/x6-f/lldsd-b/h9'
+    runs-on: [kubefocus-org]
+ 
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Build deployments
+      id: build
+      timeout-minutes: 20
+      run: |
+        echo "$brkoutName"
+    - name: Generate Breakout File
+      timeout-minutes: 20
+      run: |
+        cat <<EOF > breakout.json
+        {
+            "kind": "Breakout",
+            "apiVersion": "appez.kubefocus.com/v1beta1",
+            "metadata": {
+                "name": "b-h9",
+                "namespace": "o-fwn-c-j5k-e-x6-d-cdc-i-lldsd",
+                "creationTimestamp": null
+            },
+            "spec": {
+                "organization": "kubefocus.com",
+                "cluster": "do1",
+                "environment": "dev",
+                "application": "microservices-demo",
+                "feature": "freeshipping",
+                "baseBreakout": "appez-dflt-brkout",
+                "breakout": "%%BRKOUT_NAME%%",
+                "isPRBreakout": true,
+                "moduleRefs": [
+                    {
+                        "kind": "Deployment",
+                        "name": "shippingservice",
+                        "containers": [
+                            {
+                                "name": "server",
+                                "image": "${{ steps.build.outputs.IMAGE_shippingservice_server }}",
+                                "env": [
+                                    {
+                                        "name": "NUM_ITEMS_FOR_FREE_SHIPPING",
+                                        "value": "003"
+                                    }
+                                ],
+                                "envType": "Add",
+                                "resources": {},
+                                "buildCommands": "tag=$(git rev-parse --short=8 HEAD)\ncd src/shippingservice\ndocker buildx build . -t registry.gitlab.com/novusbee/microservices/shippingservice:${tag}\ndocker push registry.gitlab.com/novusbee/microservices/shippingservice:${tag}\necho \"IMAGE_shippingservice_server=registry.gitlab.com/novusbee/microservices/shippingservice:${tag}\" \u003e\u003e %%GITHUB_OUTPUT%%\ncd ../..\n"
+                            }
+                        ]
+                    },
+                    {
+                        "kind": "Service",
+                        "name": "shippingservice"
+                    }
+                ],
+                "routingRules": {
+                    "httpRoute": {}
+                },
+                "scope": "public"
+            },
+            "status": {}
+        }
+        EOF
+        sed -i "s|%%BRKOUT_NAME%%|$brkoutName|g" breakout.json
+        cat breakout.json
+
+    - name: Update Container Images
+      timeout-minutes: 20
+      run: |
+        result=$(cat breakout.json)
+
+
+        result=$(echo $result | jq '.spec.moduleRefs |= map(
+          if .kind == "Deployment" and .name == "shippingservice" then
+            .containers |= map(
+              if .name == "server" then
+                .image = "${{ steps.build.outputs.IMAGE_shippingservice_server }}"
+              end
+            )
+          end
+        )')
+
+        echo $result | jq -r '.spec.moduleRefs'
+
+        echo $result | jq -r '.spec.moduleRefs'
+        echo $result | jq > breakout.json
+
+
+    - name: Create Breakout on PR opened
+      if: github.event.action == 'opened'
+      run: |
+        echo "I just created a PR and will create the corresponding breakout"
+
+        at=$(curl --silent -X POST https://appez-keycloak.kubefocus.com/realms/kubefocus.com/protocol/openid-connect/token   -d grant_type=client_credentials   -d client_id=${{secrets.KC_CLIENT_ID}} -d client_secret=${{ secrets.KC_CLIENT_SECRET }} -d scope=openid | jq -r '.access_token')
+        curl -X POST -H "X-Auth-Bearer-Token: ${at}" 'https://appez.kubefocus.com/api/v1/breakouts/pulls?target=${{ github.event.pull_request.base.ref }}&source=${{ github.event.pull_request.head.ref }}&user=${{ github.actor }}' -H 'Content-Type: application/json' --data-binary @breakout.json
