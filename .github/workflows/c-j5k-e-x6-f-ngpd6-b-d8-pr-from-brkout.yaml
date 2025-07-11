@@ -23,7 +23,7 @@ jobs:
 
   create-pr-breakout:
     needs: check-label
-    if: ${{ github.head_ref == 'c/j5k-e/x6-f/ngpd6-b/d8' && (github.event.action == 'opened' || github.event.action == 'labeled') }}
+    if: ${{ github.head_ref == 'c/j5k-e/x6-f/ngpd6-b/d8' }}
     runs-on: [kubefocus-org]
  
     steps:
@@ -55,8 +55,8 @@ jobs:
             "kind": "Breakout",
             "apiVersion": "appez.kubefocus.com/v1beta1",
             "metadata": {
-                "name": "b-d8",
-                "namespace": "o-fwn-c-j5k-e-x6-d-cdc-i-ngpd6",
+                "name": "",
+                "namespace": "",
                 "creationTimestamp": null
             },
             "spec": {
