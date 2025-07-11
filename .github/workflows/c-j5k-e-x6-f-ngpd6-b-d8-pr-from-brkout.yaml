@@ -12,7 +12,8 @@ env:
   brkoutName: pr-${{ github.event.number }}
 
 jobs:
-  check-label:
+  create-pr-breakout:
+    if: ${{ github.head_ref == 'c/j5k-e/x6-f/ngpd6-b/d8' }}
     runs-on: [kubefocus-org]
     steps:
     - name: Check for label
@@ -21,12 +22,6 @@ jobs:
         echo "PR does not have the 'breakout' label!"
         exit 1
 
-  create-pr-breakout:
-    needs: check-label
-    if: ${{ github.head_ref == 'c/j5k-e/x6-f/ngpd6-b/d8' }}
-    runs-on: [kubefocus-org]
- 
-    steps:
     - uses: actions/checkout@v4
 
     - name: Build deployments
