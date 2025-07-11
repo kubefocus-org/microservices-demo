@@ -16,8 +16,10 @@ jobs:
     runs-on: [kubefocus-org]
     steps:
     - name: Check for label
-      if: contains(join(github.event.pull_request.labels.*.name, ','), 'breakout')
-      run: echo "PR has the 'breakout' label!"
+      if: ${{ !contains(toJson(github.event.pull_request.labels.*.name), 'breakout') }}
+      run: |
+        echo "PR does not have the 'breakout' label!"
+        exit 1
 
   create-pr-breakout:
     needs: check-label
