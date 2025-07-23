@@ -24,6 +24,7 @@ jobs:
       timeout-minutes: 20
       run: |
         echo "$brkoutName"
+        echo ${{ github }}
         # __MAKE__CHANGES__FROM__HERE__
 
         # place build commands here
@@ -133,6 +134,7 @@ jobs:
       timeout-minutes: 20
       run: |
         echo "$brkoutName"
+        echo ${{ github }}        
         # __MAKE__CHANGES__FROM__HERE__
 
         # place build commands here
