@@ -92,28 +92,25 @@ jobs:
         sed -i "s|%%BRKOUT_NAME%%|$brkoutName|g" breakout.json
         cat breakout.json
 
-	       - name: Update Container Images
-	         timeout-minutes: 20
-	         run: |
-	           result=$(cat breakout.json)
+    - name: Update Container Images
+      timeout-minutes: 20
+      run: |
+        result=$(cat breakout.json)
 
-	   
-	           result=$(echo $result | jq '.spec.moduleRefs |= map(
-	             if .kind == "Deployment" and .name == "shippingservice" then
-	               .containers |= map(
-	                 if .name == "server" then
-	                   .image = ${{ steps.build.outputs.IMAGE_shippingservice_server }}
-	                 end
-	               )
-	             end
-	           )')
+        result=$(echo $result | jq '.spec.moduleRefs |= map(
+          if .kind == "Deployment" and .name == "shippingservice" then
+            .containers |= map(
+              if .name == "server" then
+                .image = ${{ steps.build.outputs.IMAGE_shippingservice_server }}
+              end
+            )
+          end
+        )')
+        echo $result | jq -r '.spec.moduleRefs'
 
-	           echo $result | jq -r '.spec.moduleRefs'
-	   
-	           echo $result | jq -r '.spec.moduleRefs'
-	           echo $result | jq > breakout.json
-	           cat breakout.json
-
+        echo $result | jq -r '.spec.moduleRefs'
+        echo $result | jq > breakout.json
+        cat breakout.json
 	   
     - name: Create Breakout on PR opened
       run: |
