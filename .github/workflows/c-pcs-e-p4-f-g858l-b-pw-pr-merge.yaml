@@ -43,7 +43,7 @@ jobs:
         cd src/shippingservice
         docker buildx build . -t registry.gitlab.com/novusbee/microservices/shippingservice:${tag}
         docker push registry.gitlab.com/novusbee/microservices/shippingservice:${tag}
-        echo "IMAGE_shippingservice_server=registry.gitlab.com/novusbee/microservices/shippingservice:" >> $GITHUB_OUTPUT
+        echo "IMAGE_shippingservice_server=registry.gitlab.com/novusbee/microservices/shippingservice:${tag}" >> $GITHUB_OUTPUT
         cd ../..
         
         # __MAKE__CHANGES__TO__HERE__
@@ -56,8 +56,9 @@ jobs:
         srcResult=$(curl -s -H 'accept: application/json' -H "X-Auth-Bearer-Token: ${at}" -H 'content-type: application/json' 'https://appez.kubefocus.com/api/v1/breakouts/detail?organization=kubefocus.com&cluster=do1&environment=dev&application=microservices&feature=freeshipping&breakout=fs&includeStatus=true' 2> /dev/null)
         echo $tgtResult | jq -r '.spec.moduleRefs'
         echo $srcResult | jq -r '.spec.moduleRefs'
-        updResult=$(jq --argjson srcRefs "$(jq -r '.spec.moduleRefs' <<< "$srcResult")"  '.spec.moduleRefs = $srcRefs' <<< "$tgtResult")
-        echo $updResult | jq > breakout.json
+        result=$(jq --argjson srcRefs "$(jq -r '.spec.moduleRefs' <<< "$srcResult")"  '.spec.moduleRefs = $srcRefs' <<< "$tgtResult")
+        echo $result | jq > breakout.json
+        cat breakout.json
 
         result=$(echo $result | jq '.spec.moduleRefs |= map(
           if .kind == "Deployment" and .name == "shippingservice" then
