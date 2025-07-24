@@ -76,7 +76,7 @@ jobs:
         echo $result | jq -r '.spec.moduleRefs'
         echo $result | jq > breakout.json
         echo "Final target breakout spec"
-		cat breakout.json
+        cat breakout.json
 
     - name: Update Breakout
       timeout-minutes: 20
