@@ -111,7 +111,7 @@ jobs:
         echo $result | jq -r '.spec.moduleRefs'
         echo $result | jq > breakout.json
         cat breakout.json
-	   
+
     - name: Create Breakout on PR opened
       run: |
         echo "I just created a PR and will create the corresponding breakout"
