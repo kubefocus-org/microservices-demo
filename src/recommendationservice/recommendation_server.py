@@ -79,9 +79,9 @@ class RecommendationService(demo_pb2_grpc.RecommendationServiceServicer):
         prod_list = [filtered_products[i] for i in indices]
         logger.info("[Recv ListRecommendations] product_ids={}".format(prod_list))
 
-        logger.debug("Not showing recommendations")
-        prod_list = []
-        logger.debug("[Recv ListRecommendations] product_ids={}".format(prod_list))
+        # logger.debug("Not showing recommendations")
+        # prod_list = []
+        # logger.debug("[Recv ListRecommendations] product_ids={}".format(prod_list))
 
         # build and return response
         response = demo_pb2.ListRecommendationsResponse()
