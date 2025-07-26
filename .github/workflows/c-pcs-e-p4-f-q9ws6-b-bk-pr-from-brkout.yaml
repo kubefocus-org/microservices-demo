@@ -1,0 +1,123 @@
+# Look for the tags __MAKE__CHANGES__FROM__HERE__ and __MAKE__CHANGES__TO__HERE__
+name: "Pull request create from breakout to ancestor"
+on:
+  pull_request:
+    types:
+    - labeled
+    - opened
+    - synchronize
+    # run on pull request from breakout branch to any ancestor branch
+
+env:
+  brkoutName: pr-${{ github.event.number }}
+
+jobs:
+  create-pr-breakout:
+    runs-on: [kubefocus-org]
+    if: ${{ github.head_ref == 'c/pcs-e/p4-f/q9ws6-b/bk' && (github.event.action == 'opened' || github.event.action == 'labeled') && contains(toJson(github.event.pull_request.labels.*.name), 'breakout') }}
+    steps:
+    - uses: actions/checkout@v4
+
+
+    - name: Build deployments
+      id: build
+      timeout-minutes: 20
+      run: |
+        echo "$brkoutName"
+        # __MAKE__CHANGES__FROM__HERE__
+
+        # place build commands here
+        # Build image and push to registry for container 'server' of deployment 'frontend'
+        tag=$(git rev-parse --short=8 HEAD)
+        cd src/frontend_sports
+        mkdir -p bin
+        go build -o bin/frontend
+        docker buildx build . -t registry.gitlab.com/novusbee/microservices/frontend:${tag}
+        docker push registry.gitlab.com/novusbee/microservices/frontend:${tag}
+        echo "IMAGE_frontend_server=registry.gitlab.com/novusbee/microservices/frontend:${tag}" >> $GITHUB_OUTPUT
+        cd ../..
+        
+        # Build image and push to registry for container 'server' of deployment 'productcatalogservice'
+        tag=$(git rev-parse --short=8 HEAD)
+        cd src/productcatalogservice_sports
+        docker buildx build . -t registry.gitlab.com/novusbee/microservices/productcatalogservice:${tag}
+        docker push registry.gitlab.com/novusbee/microservices/productcatalogservice:${tag}
+        echo "IMAGE_productcatalogservice_server=registry.gitlab.com/novusbee/microservices/productcatalogservice:${tag}" >> $GITHUB_OUTPUT
+        cd ../..
+        
+        # __MAKE__CHANGES__TO__HERE__
+
+    - name: Generate Breakout File
+      timeout-minutes: 20
+      run: |
+        cat <<EOF > breakout.json
+        {
+            "kind": "Breakout",
+            "apiVersion": "appez.kubefocus.com/v1beta1",
+            "metadata": {
+                "creationTimestamp": null
+            },
+            "spec": {
+                "organization": "kubefocus.com",
+                "cluster": "do1",
+                "environment": "dev",
+                "application": "microservices",
+                "feature": "sports",
+                "baseBreakout": "appez-dflt-brkout",
+                "breakout": "%%BRKOUT_NAME%%",
+                "isPRBreakout": true,
+                "moduleRefs": [
+                    {
+                        "kind": "Deployment",
+                        "name": "frontend",
+                        "containers": [
+                            {
+                                "name": "server",
+                                "image": "${{ steps.build.outputs.IMAGE_frontend_server }}",
+                                "resources": {},
+                                "buildCommands": "tag=%%$%%(git rev-parse --short=8 HEAD)\ncd src/frontend_sports\nmkdir -p bin\ngo build -o bin/frontend\ndocker buildx build . -t registry.gitlab.com/novusbee/microservices/frontend:%%$%%{tag}\ndocker push registry.gitlab.com/novusbee/microservices/frontend:%%$%%{tag}\necho \"IMAGE_frontend_server=registry.gitlab.com/novusbee/microservices/frontend:%%$%%{tag}\" \u003e\u003e %%GITHUB_OUTPUT%%\ncd ../..\n"
+                            }
+                        ]
+                    },
+                    {
+                        "kind": "Service",
+                        "name": "frontend"
+                    },
+                    {
+                        "kind": "Deployment",
+                        "name": "productcatalogservice",
+                        "containers": [
+                            {
+                                "name": "server",
+                                "image": "${{ steps.build.outputs.IMAGE_productcatalogservice_server }}",
+                                "args": [
+                                    "-extracost=004"
+                                ],
+                                "argsType": "Add",
+                                "resources": {},
+                                "buildCommands": "tag=%%$%%(git rev-parse --short=8 HEAD)\ncd src/productcatalogservice_sports\ndocker buildx build . -t registry.gitlab.com/novusbee/microservices/productcatalogservice:%%$%%{tag}\ndocker push registry.gitlab.com/novusbee/microservices/productcatalogservice:%%$%%{tag}\necho \"IMAGE_productcatalogservice_server=registry.gitlab.com/novusbee/microservices/productcatalogservice:%%$%%{tag}\" \u003e\u003e %%GITHUB_OUTPUT%%\ncd ../..\n"
+                            }
+                        ]
+                    },
+                    {
+                        "kind": "Service",
+                        "name": "productcatalogservice"
+                    }
+                ],
+                "routingRules": {
+                    "httpRoute": {}
+                },
+                "scope": "public"
+            },
+            "status": {}
+        }
+        EOF
+        sed -i "s|%%BRKOUT_NAME%%|$brkoutName|g" breakout.json
+        cat breakout.json
+
+    - name: Create Breakout on PR opened
+      run: |
+        echo "I just created a PR and will create the corresponding breakout"
+
+        at=$(curl --silent -X POST https://appez-keycloak.kubefocus.com/realms/kubefocus.com/protocol/openid-connect/token   -d grant_type=client_credentials   -d client_id=${{secrets.KC_CLIENT_ID}} -d client_secret=${{ secrets.KC_CLIENT_SECRET }} -d scope=openid | jq -r '.access_token')
+        curl -X POST -H "X-Auth-Bearer-Token: ${at}" 'https://appez.kubefocus.com/api/v1/breakouts/pulls?target=${{ github.event.pull_request.base.ref }}&source=${{ github.event.pull_request.head.ref }}&user=${{ github.actor }}' -H 'Content-Type: application/json' --data-binary @breakout.json
